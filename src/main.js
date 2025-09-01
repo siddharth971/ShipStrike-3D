@@ -169,7 +169,7 @@ window.addEventListener('resize', () => {
 });
 
 // =================== PARTICLE & SPRITE HELPERS ===================
-function makeSplashTexture(size = 256, inner = '#e41818ff', outer = '#ff66ebff') {
+function makeSplashTexture(size = 256, inner = '#e41818ff', outer = '#1f191eff') {
   const c = document.createElement('canvas'); c.width = c.height = size;
   const ctx = c.getContext('2d');
   const grd = ctx.createRadialGradient(size/2, size/2, 2, size/2, size/2, size/2);
