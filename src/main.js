@@ -13,10 +13,12 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 import { Water } from './objects/Water';
 import { Ground } from './objects/Ground';
 import { setupUI } from './ui';
+import { ClippingGroup } from 'three/webgpu';
 
 // ================== TUNABLE CONFIG ==================
 const WATER_SIZE = 2000;
@@ -27,9 +29,9 @@ const BLOOM_STRENGTH = 0.28;
 
 // Camera follow + mouse yaw settings
 const CAMERA_PITCH = 0.35;             // radians down tilt (fixed)
-const CAMERA_DISTANCE = 14;            // distance behind ship
-const CAMERA_HEIGHT = 6;               // height above ship
-const CAMERA_YAW_MAX = 0.9;            // max yaw offset (radians) from mouse X [-1..1]*CAMERA_YAW_MAX
+const CAMERA_DISTANCE = 30;            // distance behind ship
+const CAMERA_HEIGHT = 7;               // height above ship
+const CAMERA_YAW_MAX = 0;            // max yaw offset (radians) from mouse X [-1..1]*CAMERA_YAW_MAX
 const CAMERA_LERP = 0.12;              // smoothing toward desired camera pos
 
 // Lock-on settings
@@ -116,6 +118,57 @@ scene.add(water);
 const ground = new Ground({ texture: poolTexture, width: WATER_SIZE, height: WATER_SIZE });
 ground.position.y = -0.12;
 scene.add(ground);
+
+const gltfLoader = new GLTFLoader();
+gltfLoader.load('src/models/island.glb',
+  (gltf) => {
+    const island = gltf.scene;
+
+    // scale first
+    island.scale.set(1, 1, 1);
+
+    // ensure world matrices are up-to-date before computing bounds
+    island.updateMatrixWorld(true);
+
+    // compute bounding box in world space
+    const box = new THREE.Box3().setFromObject(island);
+    console.log('island bbox', box.min, box.max);
+
+    // desired water surface (your water y is 0 in code)
+    const waterY = water.position ? water.position.y : 0;
+
+    // translation to bring the lowest point (box.min.y) to waterY + clearance
+    const clearance = 0.02; // small gap so it doesn't clip into water
+    const translation = (waterY + clearance) - box.min.y;
+
+    // apply translation to island.position
+    island.position.y += translation;
+
+    // optional: further tune position and orientation
+    island.position.x = 100;
+      island.position.y= 85;
+      console.log(  island.position.y)
+    island.position.z = -10;
+
+    // sanity clamps — if island still ends up absurdly high, log details
+    if (Math.abs(translation) > 500) {
+      console.warn('Large island translation:', translation, 'bbox:', box);
+      // as a fallback set a safe default
+      island.position.set(50, 0.5, -100);
+    }
+
+    // add bounding box helper for debugging (remove later)
+    // const helper = new THREE.Box3Helper(box, 0xff0000);
+    // scene.add(helper);
+
+    scene.add(island);
+  },
+  (xhr) => { /* progress if you want */ },
+  (err) => { console.error('island load error', err); }
+);
+
+
+
 
 // --- Postprocessing (bloom) ---
 const composer = new EffectComposer(renderer);
