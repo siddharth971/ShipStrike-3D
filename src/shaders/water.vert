@@ -1,16 +1,21 @@
 precision highp float;
 
 uniform float uTime;
-
 uniform float uWavesAmplitude;
 uniform float uWavesSpeed;
 uniform float uWavesFrequency;
 uniform float uWavesPersistence;
 uniform float uWavesLacunarity;
 uniform float uWavesIterations;
+uniform mat4 textureMatrix;
+
+uniform sampler2D uSimTexture;
+uniform float uSimSize;
+uniform vec2 uSimCenter;
 
 varying vec3 vNormal;
 varying vec3 vWorldPosition;
+varying vec4 vMirrorCoord;
 
 //	Simplex 3D Noise 
 //	by Ian McEwan, Stefan Gustavson (https://github.com/stegu/webgl-noise)
@@ -57,18 +62,26 @@ float getElevation(float x, float z) {
   vec2 pos = vec2(x, z);
 
   float elevation = 0.0;
+  
+  // 1. Simulation Ripples (Interactive)
+  vec2 simUv = (pos - uSimCenter) / uSimSize + 0.5;
+  if(simUv.x >= 0.0 && simUv.x <= 1.0 && simUv.y >= 0.0 && simUv.y <= 1.0) {
+    elevation += texture2D(uSimTexture, simUv).r * 5.0; // Scale ripples
+  }
+
+  // 2. Procedural Waves (Ambient)
   float amplitude = 1.0;
   float frequency = uWavesFrequency;
-  vec2 p = pos.xy;
 
   for(float i = 0.0; i < uWavesIterations; i++) {
-    float noiseValue = snoise(p * frequency + uTime * uWavesSpeed);
-    elevation += amplitude * noiseValue;
+    float noiseValue = snoise(pos * frequency + uTime * uWavesSpeed);
+    noiseValue = 1.0 - abs(noiseValue); 
+    noiseValue = pow(noiseValue, 1.6);
+    
+    elevation += amplitude * noiseValue * uWavesAmplitude;
     amplitude *= uWavesPersistence;
     frequency *= uWavesLacunarity;
   }
-
-  elevation *= uWavesAmplitude;
 
   return elevation;
 }
@@ -85,8 +98,9 @@ void main() {
   vec3 bitangent = normalize(vec3(0.0, getElevation(modelPosition.x, modelPosition.z - eps) - elevation, eps));
   vec3 objectNormal = normalize(cross(tangent, bitangent));
 
-  vNormal = objectNormal;
+  vNormal = normalize(normalMatrix * objectNormal);
   vWorldPosition = modelPosition.xyz;
+  vMirrorCoord = textureMatrix * modelPosition;
 
   gl_Position = projectionMatrix * viewMatrix * modelPosition;
 }

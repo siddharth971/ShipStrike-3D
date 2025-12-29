@@ -21,12 +21,12 @@ export const LOCKON_MIN_DISTANCE = 8;         // min distance to consider enemy 
 
 // Sway (bobbing) and splash settings
 export const SWAY = {
-  baseAmplitude: 0.04,
-  baseFreq: 1.4,
-  rollAmp: 0.02,
-  pitchAmp: 0.012,
-  splashThresholdFactor: 0.6,
-  splashCooldown: 0.28
+  baseAmplitude: 0.35,  // Increased to match water waves
+  baseFreq: 1.2,
+  rollAmp: 0.08,        // More roll
+  pitchAmp: 0.05,       // More pitch
+  splashThresholdFactor: 0.5,
+  splashCooldown: 0.25
 };
 
 // Gun / muzzle / shell settings

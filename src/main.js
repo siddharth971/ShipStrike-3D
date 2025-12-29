@@ -23,7 +23,10 @@ setupInputHandlers();
 // Spawn player and initial enemies
 spawnPlayer();
 for (let i = 0; i < 4; i++) {
-  spawnEnemyAt((i + 1) * -24, (i - 1) * 18);
+  // Move enemies further away to prevent initial overlap and lag
+  const angle = (i / 4) * Math.PI * 2;
+  const dist = 200 + i * 80; // Increased base distance and increment
+  spawnEnemyAt(Math.cos(angle) * dist, Math.sin(angle) * dist);
 }
 
 // =================== MAIN GAME LOOP ===================
@@ -33,7 +36,8 @@ function animate() {
   requestAnimationFrame(animate);
 
   // Shader updates
-  water.update(elapsed);
+  const shipPos = state.player ? state.player.position : null;
+  water.update(elapsed, shipPos);
   ground.update(elapsed);
 
   // Controls & game logic

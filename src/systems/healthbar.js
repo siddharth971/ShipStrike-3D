@@ -7,17 +7,17 @@ import { CONFIG } from '../core/config';
 
 // 3D health bar helpers
 export function create3DHealthBar() {
-  const width = 3.2, height = 0.44, gap = 0.06;
+  const width = 1.8, height = 0.18, gap = 0.03; // Much smaller
   const group = new THREE.Group();
 
   const bg = new THREE.Mesh(
     new THREE.PlaneGeometry(width, height),
-    new THREE.MeshBasicMaterial({ color: 0x000000, opacity: 0.6, transparent: true })
+    new THREE.MeshBasicMaterial({ color: 0x000000, opacity: 0.4, transparent: true })
   );
 
   const fg = new THREE.Mesh(
     new THREE.PlaneGeometry(width - gap * 2, height - gap * 2),
-    new THREE.MeshBasicMaterial({ color: 0x29a329, transparent: true })
+    new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true })
   );
 
   const fgContainer = new THREE.Group();
@@ -30,7 +30,7 @@ export function create3DHealthBar() {
 
 export function attachHealthBarToShip(ship) {
   const bar = create3DHealthBar();
-  bar.position.set(0, 2.6, 0);
+  bar.position.set(0, 4.5, 0); // Above the masts
   ship.add(bar);
   ship.userData._hp3D = bar;
   updateShipHealthBar(ship);

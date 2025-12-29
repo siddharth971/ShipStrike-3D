@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import { state, gameOver, setGameOver } from '../core/state';
-import { scene, clock } from '../core/renderer';
+import { scene, clock, water } from '../core/renderer';
 import {
   CONFIG,
   SHIP_MODEL_SCALE,
@@ -150,6 +150,7 @@ export function updateCannonballs(delta) {
     // water
     if (b.position.y <= 0.2) {
       spawnSplashParticleBurst(b.position.clone(), 5, 1.8);
+      water.addRippleAt(b.position.x, b.position.z, 0.08, 0.15);
       if (b.parent) b.parent.remove(b);
       state.cannonballs.splice(i, 1);
       continue;

@@ -144,8 +144,45 @@ export function applyTurretRecoil(turret, delta) {
 }
 
 // =================== Separation: only move enemies (player fixed) ===================
-export function maintainShipSeparation(minExtra = 2.0) {
-  // enemies vs player -> move only enemies away
+export function maintainShipSeparation(minExtra = 10.0) {
+  const SHIP_RAD = CONFIG.SHIP_RADIUS * SHIP_MODEL_SCALE;
+
+  // 1. Ships vs Island
+  if (state.island && state.island.userData.radius) {
+    const isPos = state.island.position;
+    const ir = state.island.userData.radius;
+
+    // Player vs Island
+    if (state.player) {
+      const dx = state.player.position.x - isPos.x;
+      const dz = state.player.position.z - isPos.z;
+      const dist = Math.hypot(dx, dz);
+      const pr = state.player.userData.radius || SHIP_RAD;
+      const desired = ir + pr;
+      if (dist < desired && dist > 0.001) {
+        const overlap = desired - dist;
+        state.player.position.x += (dx / dist) * overlap;
+        state.player.position.z += (dz / dist) * overlap;
+      }
+    }
+
+    // Enemies vs Island
+    for (let en of state.enemies) {
+      if (!en || en.userData.dead) continue;
+      const dx = en.position.x - isPos.x;
+      const dz = en.position.z - isPos.z;
+      const dist = Math.hypot(dx, dz);
+      const er = en.userData.radius || SHIP_RAD;
+      const desired = ir + er;
+      if (dist < desired && dist > 0.001) {
+        const overlap = desired - dist;
+        en.position.x += (dx / dist) * overlap;
+        en.position.z += (dz / dist) * overlap;
+      }
+    }
+  }
+
+  // 2. enemies vs player -> move only enemies away
   if (state.player) {
     const player = state.player;
     for (let en of state.enemies) {
@@ -153,8 +190,8 @@ export function maintainShipSeparation(minExtra = 2.0) {
       const dx = en.position.x - player.position.x;
       const dz = en.position.z - player.position.z;
       const dist = Math.hypot(dx, dz);
-      const rE = en.userData.radius || (CONFIG.SHIP_RADIUS * SHIP_MODEL_SCALE);
-      const rP = player.userData.radius || (CONFIG.SHIP_RADIUS * SHIP_MODEL_SCALE);
+      const rE = en.userData.radius || SHIP_RAD;
+      const rP = player.userData.radius || SHIP_RAD;
       const desired = rE + rP + minExtra;
       if (dist < desired && dist > 0.001) {
         const overlap = desired - dist;

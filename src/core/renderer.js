@@ -11,6 +11,7 @@ import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 
 import { Water } from '../objects/Water';
 import { Ground } from '../objects/Ground';
+import { state } from './state';
 import { WATER_SIZE, CAMERA_FOV, TONE_EXPOSURE, BLOOM_STRENGTH } from './config';
 
 // --- Minimal CSS so canvas fills screen ---
@@ -27,21 +28,22 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = TONE_EXPOSURE;
+renderer.toneMappingExposure = 1.1; // Brighten for vibrant tropical look
 document.body.appendChild(renderer.domElement);
 
 // --- Scene ---
 export const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2('#aed6f1', 0.0005); // Lighter, prettier fog
 
 // --- Camera ---
 export const camera = new THREE.PerspectiveCamera(CAMERA_FOV, window.innerWidth / window.innerHeight, 0.1, 3000);
-camera.position.set(0, 7, 30);
+camera.position.set(0, 10, 35);
 
 // --- Lighting ---
-const hemi = new THREE.HemisphereLight(0xbfeaf5, 0x404040, 1.0);
+const hemi = new THREE.HemisphereLight(0xffffff, 0x005b96, 0.8); // Less intense ground reflection
 scene.add(hemi);
-const dir = new THREE.DirectionalLight(0xffffff, 1.2);
-dir.position.set(30, 80, 50);
+const dir = new THREE.DirectionalLight(0xffffff, 1.6);
+dir.position.set(100, 200, 100);
 scene.add(dir);
 
 // --- HDR environment ---
@@ -54,7 +56,13 @@ environmentMap.load('src/objects/sky.hdr', (tex) => {
 
 // --- Water & Ground ---
 const poolTexture = new THREE.TextureLoader().load('/threejs-water-shader/ocean_floor.png');
-export const water = new Water({ environmentMap, resolution: 512, width: WATER_SIZE, height: WATER_SIZE });
+export const water = new Water({
+  renderer,
+  environmentMap,
+  resolution: 512,
+  width: WATER_SIZE,
+  height: WATER_SIZE
+});
 water.material.transparent = true;
 water.material.depthTest = true;
 water.material.depthWrite = false;
@@ -62,41 +70,65 @@ water.renderOrder = 100;
 water.position.y = 0;
 scene.add(water);
 
-export const ground = new Ground({ texture: poolTexture, width: WATER_SIZE, height: WATER_SIZE });
-ground.position.y = -0.12;
+export const ground = new Ground({
+  texture: poolTexture,
+  width: WATER_SIZE,
+  height: WATER_SIZE,
+  causticsIntensity: 0.35,
+  causticsScale: 20.0
+});
+ground.position.y = -15.0; // Deeper for better tropical gradient
 scene.add(ground);
 
 // --- Island loader ---
 export const gltfLoader = new GLTFLoader();
-gltfLoader.load('src/models/island.glb',
-  (gltf) => {
-    const island = gltf.scene;
-    island.scale.set(1, 1, 1);
-    island.updateMatrixWorld(true);
+let islandLoaded = false;
 
-    const box = new THREE.Box3().setFromObject(island);
-    console.log('island bbox', box.min, box.max);
+export function loadIsland() {
+  if (islandLoaded) return;
+  islandLoaded = true;
 
-    const waterY = water.position ? water.position.y : 0;
-    const clearance = 0.02;
-    const translation = (waterY + clearance) - box.min.y;
+  gltfLoader.load('src/models/island.glb',
+    (gltf) => {
+      const island = gltf.scene;
+      island.scale.set(0.6, 0.6, 0.6); // A bit larger again
+      island.updateMatrixWorld(true);
 
-    island.position.y += translation;
-    island.position.x = 100;
-    island.position.y = 85;
-    console.log(island.position.y);
-    island.position.z = -10;
+      const box = new THREE.Box3().setFromObject(island);
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      console.log('Island size:', size);
 
-    if (Math.abs(translation) > 500) {
-      console.warn('Large island translation:', translation, 'bbox:', box);
-      island.position.set(50, 0.5, -100);
+      // Store in state for collision detection
+      state.island = island;
+      // Use the average of width/depth for a simple radial collision,
+      // but scaled down slightly since the model might have thin edges.
+      state.island.userData.radius = Math.max(size.x, size.z) * 0.45;
+
+      const waterY = water.position ? water.position.y : 0;
+      const clearance = 0.05;
+      const translation = (waterY + clearance) - box.min.y;
+
+      island.position.y += translation;
+      island.position.x = 600;
+      island.position.z = -600;
+
+      if (Math.abs(translation) > 500) {
+        island.position.set(600, 0.5, -600);
+      }
+
+      scene.add(island);
+      console.log('Island added to scene. Radius:', state.island.userData.radius);
+    },
+    undefined,
+    (err) => {
+      console.error('island load error', err);
+      islandLoaded = false;
     }
+  );
+}
 
-    scene.add(island);
-  },
-  (xhr) => { /* progress */ },
-  (err) => { console.error('island load error', err); }
-);
+loadIsland();
 
 // --- Postprocessing (bloom) ---
 export const composer = new EffectComposer(renderer);

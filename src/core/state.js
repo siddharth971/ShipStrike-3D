@@ -22,7 +22,8 @@ export const state = {
   lockOn: false,
   lockTarget: null,
 
-  cameraShake: { t: 0, intensity: 0 }
+  cameraShake: { t: 0, intensity: 0 },
+  island: null
 };
 
 // Game over flag

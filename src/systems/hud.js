@@ -77,7 +77,11 @@ export function clearWorld() {
 export function restartGame() {
   clearWorld();
   spawnPlayer();
-  for (let i = 0; i < 4; i++) spawnEnemyAt((i + 1) * -24, (i - 1) * 18);
+  for (let i = 0; i < 4; i++) {
+    const angle = (i / 4) * Math.PI * 2;
+    const dist = 120 + i * 40;
+    spawnEnemyAt(Math.cos(angle) * dist, Math.sin(angle) * dist);
+  }
   const go = document.getElementById('game-over-screen');
   if (go) go.style.display = 'none';
 }
