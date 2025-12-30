@@ -14,6 +14,7 @@ export function spawnPlayer() {
     playerObj.userData.isEnemy = false;
     playerObj.userData.health = CONFIG.PLAYER_HEALTH;
     playerObj.userData.shootCooldown = CONFIG.PLAYER_COOLDOWN;
+    // Start at origin, but elevated by loader
     playerObj.position.set(0, playerObj.position.y, 0);
     updateShipHealthBar(playerObj);
   });
@@ -29,6 +30,7 @@ export function updatePlayerTurretAim() {
   if (turret) {
     const dx = intersect.x - state.player.position.x;
     const dz = intersect.z - state.player.position.z;
+    // Point turret toward mouse
     turret.rotation.y = Math.atan2(dx, dz) - state.player.rotation.y;
   }
 }
@@ -36,16 +38,21 @@ export function updatePlayerTurretAim() {
 export function updatePlayerControls(delta, elapsed) {
   if (!state.player || gameOver) return;
   const keys = state.keys;
-  if (keys['s'] || keys['arrowup']) {
-    state.player.position.x -= Math.sin(state.player.rotation.y) * PLAYER_SPEED * delta;
-    state.player.position.z -= Math.cos(state.player.rotation.y) * PLAYER_SPEED * delta;
-  }
-  if (keys['w'] || keys['arrowdown']) {
+
+  // Forward / Backward
+  if (keys['w'] || keys['arrowup']) {
     state.player.position.x += Math.sin(state.player.rotation.y) * PLAYER_SPEED * delta;
     state.player.position.z += Math.cos(state.player.rotation.y) * PLAYER_SPEED * delta;
   }
+  if (keys['s'] || keys['arrowdown']) {
+    state.player.position.x -= Math.sin(state.player.rotation.y) * PLAYER_SPEED * delta;
+    state.player.position.z -= Math.cos(state.player.rotation.y) * PLAYER_SPEED * delta;
+  }
+
+  // Rotating (Yaw)
   if (keys['a'] || keys['arrowleft']) state.player.rotation.y += PLAYER_TURN * delta;
   if (keys['d'] || keys['arrowright']) state.player.rotation.y -= PLAYER_TURN * delta;
+
   applyShipSway(state.player);
   applyTurretRecoil(state.player.userData.turret, delta);
   updateShipHealthBar(state.player);

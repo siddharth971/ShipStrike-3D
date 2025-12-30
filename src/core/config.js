@@ -1,59 +1,59 @@
 // src/core/config.js
 // ================== TUNABLE CONFIG ==================
 
-export const WATER_SIZE = 2000;
-export const SHIP_MODEL_SCALE = 4;          // change model scale here
-export const CAMERA_FOV = 55;
+export const WATER_SIZE = 5000;             // Increased water size for massive ship
+export const SHIP_MODEL_SCALE = 24;         // 3x the previous 8, for a truly massive vessel
+export const CAMERA_FOV = 65;               // Wider FOV for cinematic feel
 export const TONE_EXPOSURE = 0.82;
 export const BLOOM_STRENGTH = 0.28;
 
-// Camera follow + mouse yaw settings
-export const CAMERA_PITCH = 0.35;             // radians down tilt (fixed)
-export const CAMERA_DISTANCE = 30;            // distance behind ship
-export const CAMERA_HEIGHT = 7;               // height above ship
-export const CAMERA_YAW_MAX = 0;              // max yaw offset (radians) from mouse X [-1..1]*CAMERA_YAW_MAX
-export const CAMERA_LERP = 0.12;              // smoothing toward desired camera pos
+// Camera follow + mouse yaw settings (Third Person)
+export const CAMERA_PITCH = 0.35;             
+export const CAMERA_DISTANCE = 160;           // Scaled for massive ship
+export const CAMERA_HEIGHT = 50;              
+export const CAMERA_YAW_MAX = 0.4;            
+export const CAMERA_LERP = 0.05;              // Slower smoothing for sense of scale
 
 // Lock-on settings
-export const LOCKON_KEY = 'l';                // toggle lock-on
-export const LOCKON_SMOOTH = 0.14;            // how fast camera transitions when locked
-export const LOCKON_MIN_DISTANCE = 8;         // min distance to consider enemy for lock
+export const LOCKON_KEY = 'l';                
+export const LOCKON_SMOOTH = 0.1;           
+export const LOCKON_MIN_DISTANCE = 40;        
 
-// Sway (bobbing) and splash settings
+// Sway (bobbing) and splash settings - deeper, slower for massive ship
 export const SWAY = {
-  baseAmplitude: 0.35,  // Increased to match water waves
-  baseFreq: 1.2,
-  rollAmp: 0.08,        // More roll
-  pitchAmp: 0.05,       // More pitch
-  splashThresholdFactor: 0.5,
-  splashCooldown: 0.25
+  baseAmplitude: 1.2,   
+  baseFreq: 0.4,        // Much slower
+  rollAmp: 0.08,        // Heavy vessels roll less easily
+  pitchAmp: 0.05,       
+  splashThresholdFactor: 0.4,
+  splashCooldown: 0.4
 };
 
 // Gun / muzzle / shell settings
-export const MUZZLE_FLASH_DURATION = 0.08;
-export const MUZZLE_FLASH_SCALE = 1 * SHIP_MODEL_SCALE;
-export const RECOIL_AMOUNT = 0.22 * SHIP_MODEL_SCALE;
-export const RECOIL_DURATION = 0.12;
-export const SHELL_EJECT_SPEED = 6.0;
-export const CAMERA_SHAKE_INTENSITY = 0.06;
-export const CAMERA_SHAKE_DURATION = 0.12;
+export const MUZZLE_FLASH_DURATION = 0.12;
+export const MUZZLE_FLASH_SCALE = 1.0 * SHIP_MODEL_SCALE;
+export const RECOIL_AMOUNT = 0.15 * SHIP_MODEL_SCALE;
+export const RECOIL_DURATION = 0.25;
+export const SHELL_EJECT_SPEED = 12.0;
+export const CAMERA_SHAKE_INTENSITY = 0.15;
+export const CAMERA_SHAKE_DURATION = 0.2;
 
 // Gameplay config
 export const CONFIG = {
-  PLAYER_HEALTH: 12000,
-  ENEMY_HEALTH: 900,
-  SHIP_RADIUS: 5,
-  PLAYER_COOLDOWN: 0.35,
-  ENEMY_SHOOT_RANGE: 240,
-  ENEMY_COOLDOWN_MIN: 1.0,
-  ENEMY_COOLDOWN_MAX: 2.4,
-  BALL_RADIUS: 0.18,
-  BALL_SPEED: 80,
-  BALL_DAMAGE: 30,
-  ENEMY_TURN_SPEED: 2.2,
-  ENEMY_MOVE_SPEED: 8
+  PLAYER_HEALTH: 50000,
+  ENEMY_HEALTH: 5000,
+  SHIP_RADIUS: 30,          // Large collision footprint
+  PLAYER_COOLDOWN: 0.8,     // Slower firing for massive cannons
+  ENEMY_SHOOT_RANGE: 1000,  // Long range combat
+  ENEMY_COOLDOWN_MIN: 2.0,
+  ENEMY_COOLDOWN_MAX: 5.0,
+  BALL_RADIUS: 0.8,         // Massive cannonballs
+  BALL_SPEED: 180,          
+  BALL_DAMAGE: 200,
+  ENEMY_TURN_SPEED: 0.8,    
+  ENEMY_MOVE_SPEED: 25
 };
 
-// Player movement
-export const PLAYER_SPEED = 28;
-export const PLAYER_TURN = 3.2;
+// Player movement - heavyweight vessel physics
+export const PLAYER_SPEED = 60;              
+export const PLAYER_TURN = 0.8;              // Much slower turning (inertia)

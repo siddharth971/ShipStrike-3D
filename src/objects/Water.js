@@ -57,7 +57,7 @@ class WaterSimulation {
     this.res = res;
     this.resInv = 1.0 / res;
 
-    const type = THREE.FloatType; // Assume float support
+    const type = THREE.FloatType;
     this.rtA = new THREE.WebGLRenderTarget(res, res, { type, depthBuffer: false, stencilBuffer: false });
     this.rtB = new THREE.WebGLRenderTarget(res, res, { type, depthBuffer: false, stencilBuffer: false });
     this.currentRT = this.rtA;
@@ -117,7 +117,7 @@ export class Water extends THREE.Mesh {
   constructor(options = {}) {
     const width = options.width || 2000;
     const height = options.height || 2000;
-    const resolution = 120; // Lower vertex count significantly for performance
+    const resolution = options.resolution || 120;
 
     const geometry = new THREE.PlaneGeometry(width, height, resolution, resolution);
     super(geometry);
@@ -126,8 +126,8 @@ export class Water extends THREE.Mesh {
     const scope = this;
 
     // -- Reflection setup --
-    const textureWidth = 512; // Optimized reflection resolution
-    const textureHeight = 512;
+    const textureWidth = options.reflectionResolution || 512;
+    const textureHeight = options.reflectionResolution || 512;
     const clipBias = options.clipBias !== undefined ? options.clipBias : 0.0;
     const mirrorPlane = new THREE.Plane();
     const normal = new THREE.Vector3();
@@ -147,7 +147,7 @@ export class Water extends THREE.Mesh {
 
     // -- Simulation setup --
     if (options.renderer) {
-      this.simulation = new WaterSimulation(options.renderer, 128); // Lower GPGPU load
+      this.simulation = new WaterSimulation(options.renderer, options.simulationResolution || 128);
     }
 
     this.material = new THREE.ShaderMaterial({
@@ -155,33 +155,66 @@ export class Water extends THREE.Mesh {
       fragmentShader: waterFragmentShader,
       uniforms: {
         uTime: { value: 0 },
-        uOpacity: { value: 0.7 },
+        uOpacity: { value: 0.95 },
         uEnvironmentMap: { value: options.environmentMap },
         mirrorSampler: { value: renderTarget.texture },
         textureMatrix: { value: textureMatrix },
         eye: { value: new THREE.Vector3() },
 
-        // Simulation integration
+        // Simulation
         uSimTexture: { value: this.simulation ? this.simulation.texture : null },
-        uSimSize: { value: 300.0 }, // Size in world units of simulation window
+        uSimSize: { value: 300.0 },
         uSimCenter: { value: new THREE.Vector2(0, 0) },
 
-        uWavesAmplitude: { value: 0 },
-        uWavesFrequency: { value: 0.95 },
-        uWavesIterations: { value: 4 }, // Fewer iterations for much better FPS
-        uWavesSpeed: { value: 0.3 },
-        uTroughColor: { value: new THREE.Color('#001a33') },
-        uSurfaceColor: { value: new THREE.Color('#006994') },
-        uPeakColor: { value: new THREE.Color('#4db8e8') },
+        // Wave parameters
+        uWavesAmplitude: { value: 0.5 },
+        uWavesFrequency: { value: 0.2 },
+        uWavesIterations: { value: 5 },
+        uWavesSpeed: { value: 0.2 },
+        uWavesPersistence: { value: 0.5 },
+        uWavesLacunarity: { value: 2.0 },
 
-        uPeakThreshold: { value: 0.92 },
-        uPeakTransition: { value: 0.15 },
-        uTroughThreshold: { value: -0.4 },
-        uTroughTransition: { value: 0.6 },
-        uFresnelScale: { value: 1.2 },
-        uFresnelPower: { value: 4.0 },
+        // Colors - Dark ocean theme
+        uTroughColor: { value: new THREE.Color('#000d1a') },   // Deep dark navy
+        uSurfaceColor: { value: new THREE.Color('#003d52') },  // Dark teal
+        uPeakColor: { value: new THREE.Color('#1a7a99') },     // Muted cyan
+
+        // Color thresholds
+        uPeakThreshold: { value: 3 },
+        uPeakTransition: { value: 1.2 },
+        uTroughThreshold: { value: -0.2 },
+        uTroughTransition: { value: 0.3 },
+
+        // Fresnel
+        uFresnelScale: { value: 0.0 },
+        uFresnelPower: { value: 3.0 },
+        uFresnelBias: { value: 0.1 },
+
+        // Reflections
         sunDir: { value: new THREE.Vector3(30, 80, 50).normalize() },
-        distortionScale: { value: 4.5 }
+        distortionScale: { value: 1.0 },
+        uEnvMapIntensity: { value: 1.0 },
+        uMirrorMix: { value: 0.5 },
+
+        // Specular
+        uSpecularIntensity: { value: 1.5 },
+        uSpecularPower: { value: 256.0 },
+
+        // SSS
+        uSSSIntensity: { value: 0.3 },
+        uSSSColor: { value: new THREE.Color('#0051ff') },
+        uSSSPower: { value: 3.0 },
+
+        // Caustics
+        uCausticsEnabled: { value: 1.0 },
+        uCausticsIntensity: { value: 1.4 },
+        uCausticsScale: { value: 8.0 },
+        uCausticsSpeed: { value: 0.3 },
+        uCausticsColor: { value: new THREE.Color('#88ddff') },
+
+        // Foam
+        uFoamIntensity: { value: 0.5 },
+        uFoamColor: { value: new THREE.Color('#1120f5') }
       },
       transparent: true,
       depthTest: true,
@@ -193,7 +226,7 @@ export class Water extends THREE.Mesh {
 
     this.onBeforeRender = function (renderer, scene, camera) {
       this._frame++;
-      if (this._frame % 2 !== 0) return; // Only update reflection every 2nd frame
+      if (this._frame % 2 !== 0) return;
 
       mirrorWorldPosition.setFromMatrixPosition(scope.matrixWorld);
       cameraWorldPosition.setFromMatrixPosition(camera.matrixWorld);
@@ -276,14 +309,10 @@ export class Water extends THREE.Mesh {
     if (this.simulation) {
       this.simulation.step();
 
-      // Interaction: always add a drop at ship if provided
       if (shipPos) {
-        // Map world pos to 0..1 simulation UV
-        // We use a window of uSimSize centered at uSimCenter
         const windowSize = this.material.uniforms.uSimSize.value;
         const center = this.material.uniforms.uSimCenter.value;
 
-        // Update simulation window to follow ship a bit lazily or just keep it centered
         center.lerp(new THREE.Vector2(shipPos.x, shipPos.z), 0.05);
 
         const ux = (shipPos.x - center.x) / windowSize + 0.5;
@@ -306,6 +335,22 @@ export class Water extends THREE.Mesh {
     const uy = (worldZ - center.y) / windowSize + 0.5;
     if (ux >= 0 && ux <= 1 && uy >= 0 && uy <= 1) {
       this.simulation.addDrop(ux, uy, radius, strength);
+    }
+  }
+
+  // Getter for uniforms to easily access from UI
+  getUniforms() {
+    return this.material.uniforms;
+  }
+
+  // Helper method to set uniform value
+  setUniform(name, value) {
+    if (this.material.uniforms[name]) {
+      if (this.material.uniforms[name].value instanceof THREE.Color) {
+        this.material.uniforms[name].value.set(value);
+      } else {
+        this.material.uniforms[name].value = value;
+      }
     }
   }
 }

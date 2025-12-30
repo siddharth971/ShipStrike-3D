@@ -28,7 +28,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.1; // Brighten for vibrant tropical look
+renderer.toneMappingExposure = 0.7; // Reduced for darker sky
 document.body.appendChild(renderer.domElement);
 
 // --- Scene ---
@@ -40,9 +40,9 @@ export const camera = new THREE.PerspectiveCamera(CAMERA_FOV, window.innerWidth 
 camera.position.set(0, 10, 35);
 
 // --- Lighting ---
-const hemi = new THREE.HemisphereLight(0xffffff, 0x005b96, 0.8); // Less intense ground reflection
+const hemi = new THREE.HemisphereLight(0xffffff, 0x005b96, 0.5); // Reduced sky light
 scene.add(hemi);
-const dir = new THREE.DirectionalLight(0xffffff, 1.6);
+const dir = new THREE.DirectionalLight(0xffffff, 1.0); // Reduced sun intensity
 dir.position.set(100, 200, 100);
 scene.add(dir);
 

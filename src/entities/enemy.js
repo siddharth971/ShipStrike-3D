@@ -10,19 +10,21 @@ import { updateShipHealthBar } from '../systems/healthbar';
 import { spawnCannonballFromShip } from '../systems/combat';
 
 // =================== Safe spawn finding ===================
-export function findSafeSpawn(x, z, minDistance = 120, maxAttempts = 12) {
+export function findSafeSpawn(x, z, minDistance = 400, maxAttempts = 12) {
   let candidate = new THREE.Vector2(x, z);
+  const shipRad = CONFIG.SHIP_RADIUS * SHIP_MODEL_SCALE;
+
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     let ok = true;
     if (state.player) {
-      const pr = state.player.userData.radius || (CONFIG.SHIP_RADIUS * SHIP_MODEL_SCALE);
+      const pr = state.player.userData.radius || shipRad;
       if (Math.hypot(candidate.x - state.player.position.x, candidate.y - state.player.position.z) < (minDistance + pr)) {
         ok = false;
       }
     }
     for (let e of state.enemies) {
       if (!e) continue;
-      const er = e.userData.radius || (CONFIG.SHIP_RADIUS * SHIP_MODEL_SCALE);
+      const er = e.userData.radius || shipRad;
       if (Math.hypot(candidate.x - e.position.x, candidate.y - e.position.z) < (minDistance + er)) {
         ok = false;
         break;
@@ -30,7 +32,7 @@ export function findSafeSpawn(x, z, minDistance = 120, maxAttempts = 12) {
     }
     if (ok) return candidate;
     const a = Math.random() * Math.PI * 2;
-    const r = minDistance + attempt * 4 + Math.random() * 8;
+    const r = minDistance + attempt * 100 + Math.random() * 50;
     candidate.x += Math.cos(a) * r;
     candidate.y += Math.sin(a) * r;
   }
@@ -39,7 +41,8 @@ export function findSafeSpawn(x, z, minDistance = 120, maxAttempts = 12) {
 
 // =================== Spawn enemy ===================
 export function spawnEnemyAt(x, z) {
-  const safe = findSafeSpawn(x, z, 12);
+  // Increased safety distance for massive ships
+  const safe = findSafeSpawn(x, z, 400);
   createShipOBJ('src/models/ship.obj', 0x003366, (en) => {
     en.userData.isEnemy = true;
     en.userData.health = CONFIG.ENEMY_HEALTH;
@@ -55,6 +58,8 @@ export function spawnEnemyAt(x, z) {
 // =================== Enemy AI (pursue & separate) ===================
 export function updateEnemies(delta, elapsed) {
   if (!state.player) return;
+
+  const shipRad = CONFIG.SHIP_RADIUS * SHIP_MODEL_SCALE;
 
   for (let i = state.enemies.length - 1; i >= 0; i--) {
     const en = state.enemies[i];
@@ -83,7 +88,10 @@ export function updateEnemies(delta, elapsed) {
     }
 
     // movement + avoid others
-    if (dist > 12) {
+    // Increased distance checks for massive scale
+    const avoidDist = shipRad * 2.5;
+
+    if (dist > shipRad * 3) {
       const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(en.quaternion);
       const avoid = new THREE.Vector3();
       for (let j = 0; j < state.enemies.length; j++) {
@@ -92,15 +100,16 @@ export function updateEnemies(delta, elapsed) {
         if (!other || other.userData.dead) continue;
         const dv = new THREE.Vector3().subVectors(en.position, other.position);
         const d = dv.length();
-        if (d < 6 && d > 0.001) {
-          avoid.add(dv.normalize().multiplyScalar((6 - d) * 0.3));
+        if (d < avoidDist && d > 0.001) {
+          avoid.add(dv.normalize().multiplyScalar((avoidDist - d) * 0.5));
         }
       }
       en.position.addScaledVector(forward, CONFIG.ENEMY_MOVE_SPEED * delta);
       en.position.addScaledVector(avoid, delta);
     } else {
-      en.position.x += Math.sin(elapsed * 0.5 + i) * 0.02;
-      en.position.z += Math.cos(elapsed * 0.4 + i) * 0.02;
+      // Idle bobbing
+      en.position.x += Math.sin(elapsed * 0.5 + i) * 0.05;
+      en.position.z += Math.cos(elapsed * 0.4 + i) * 0.05;
     }
 
     // apply sway (so enemies bob)
