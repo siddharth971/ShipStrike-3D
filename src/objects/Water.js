@@ -166,13 +166,13 @@ export class Water extends THREE.Mesh {
         uSimSize: { value: 300.0 }, // Size in world units of simulation window
         uSimCenter: { value: new THREE.Vector2(0, 0) },
 
-        uWavesAmplitude: { value: 0.35 },
+        uWavesAmplitude: { value: 0 },
         uWavesFrequency: { value: 0.95 },
         uWavesIterations: { value: 4 }, // Fewer iterations for much better FPS
         uWavesSpeed: { value: 0.3 },
-        uTroughColor: { value: new THREE.Color('#0077be') },
-        uSurfaceColor: { value: new THREE.Color('#3ce7ff') },
-        uPeakColor: { value: new THREE.Color('#e0ffff') },
+        uTroughColor: { value: new THREE.Color('#001a33') },
+        uSurfaceColor: { value: new THREE.Color('#006994') },
+        uPeakColor: { value: new THREE.Color('#4db8e8') },
 
         uPeakThreshold: { value: 0.92 },
         uPeakTransition: { value: 0.15 },

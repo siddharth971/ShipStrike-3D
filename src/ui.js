@@ -14,11 +14,11 @@ export function setupUI({ water, ground }) {
   const savedSettings = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
 
   const settings = {
-    surfaceColor: savedSettings.surfaceColor || water?.material?.uniforms?.uSurfaceColor?.value?.getStyle?.() || '#3ce7ff',
-    troughColor: savedSettings.troughColor || water?.material?.uniforms?.uTroughColor?.value?.getStyle?.() || '#0077be',
-    peakColor: savedSettings.peakColor || water?.material?.uniforms?.uPeakColor?.value?.getStyle?.() || '#e0ffff',
+    surfaceColor: savedSettings.surfaceColor || water?.material?.uniforms?.uSurfaceColor?.value?.getStyle?.() || '#006994',
+    troughColor: savedSettings.troughColor || water?.material?.uniforms?.uTroughColor?.value?.getStyle?.() || '#001a33',
+    peakColor: savedSettings.peakColor || water?.material?.uniforms?.uPeakColor?.value?.getStyle?.() || '#4db8e8',
     opacity: savedSettings.opacity ?? water?.material?.uniforms?.uOpacity?.value ?? 0.7,
-    wavesAmplitude: savedSettings.wavesAmplitude ?? water?.material?.uniforms?.uWavesAmplitude?.value ?? 0.35,
+    wavesAmplitude: savedSettings.wavesAmplitude ?? water?.material?.uniforms?.uWavesAmplitude?.value ?? 0,
     wavesFrequency: savedSettings.wavesFrequency ?? water?.material?.uniforms?.uWavesFrequency?.value ?? 0.95,
     wavesSpeed: savedSettings.wavesSpeed ?? water?.material?.uniforms?.uWavesSpeed?.value ?? 0.3,
     distortionScale: savedSettings.distortionScale ?? water?.material?.uniforms?.distortionScale?.value ?? 4.5,
