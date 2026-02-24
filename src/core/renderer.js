@@ -23,8 +23,8 @@ document.head.appendChild(style);
 export const clock = new THREE.Clock();
 
 // --- Renderer ---
-export const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+export const renderer = new THREE.WebGLRenderer({ antialias: false }); // Disabled antialiasing to save fillrate since post-process blooms it anyway
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1)); // Cap pixel ratio to 1 for massive fillrate boost
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -59,7 +59,8 @@ const poolTexture = new THREE.TextureLoader().load('/threejs-water-shader/ocean_
 export const water = new Water({
   renderer,
   environmentMap,
-  resolution: 512,
+  resolution: 200, // Reduced from 512 to massively cut down the vertex shader bottleneck (50 noise calls per vertex)
+  reflectionResolution: 256, // Cut reflection resolution in half to gain huge performance boosts
   width: WATER_SIZE,
   height: WATER_SIZE
 });
@@ -134,7 +135,7 @@ loadIsland();
 export const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
 const bloomPass = new UnrealBloomPass(
-  new THREE.Vector2(window.innerWidth, window.innerHeight),
+  new THREE.Vector2(window.innerWidth / 2, window.innerHeight / 2), // Render bloom at half resolution
   BLOOM_STRENGTH, 0.2, 0.85
 );
 bloomPass.threshold = 0.9;

@@ -137,20 +137,15 @@ float getCaustics(vec2 uv, float time) {
   vec2 p1 = uv * uCausticsScale;
   caustics += 0.5 - abs(snoise3D(vec3(p1, time * uCausticsSpeed)));
   
-  // Layer 2: Secondary pattern (rotated and offset)
-  vec2 p2 = uv * uCausticsScale * 1.5;
+  // Layer 2: Secondary pattern (rotated and offset for complexity)
+  vec2 p2 = uv * uCausticsScale * 2.0;
   mat2 rot = mat2(cos(0.7), sin(0.7), -sin(0.7), cos(0.7));
   p2 = rot * p2;
-  caustics += 0.5 - abs(snoise3D(vec3(p2, -time * uCausticsSpeed * 0.8)));
+  caustics += (0.5 - abs(snoise3D(vec3(p2, -time * uCausticsSpeed * 0.8)))) * 0.75;
   
-  // Layer 3: Fine detail
-  vec2 p3 = uv * uCausticsScale * 3.0;
-  caustics += (0.5 - abs(snoise3D(vec3(p3, time * uCausticsSpeed * 1.2)))) * 0.5;
-  
-  // Normalize and shape
-  caustics = caustics / 2.5;
-  caustics = smoothstep(0.2, 0.8, caustics);
-  caustics = pow(caustics, 1.5);
+  // Normalize and shape with optimized thresholds
+  caustics = caustics / 1.75;
+  caustics = smoothstep(0.25, 0.8, caustics);
   
   return caustics;
 }

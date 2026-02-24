@@ -5,26 +5,26 @@ import * as THREE from 'three';
 import { camera } from '../core/renderer';
 import { CONFIG } from '../core/config';
 
+// Shared geometries and background material
+const barWidth = 1.8, barHeight = 0.18, gap = 0.03;
+const SHARED_HB_BG_GEO = new THREE.PlaneGeometry(barWidth, barHeight);
+const SHARED_HB_BG_MAT = new THREE.MeshBasicMaterial({ color: 0x000000, opacity: 0.4, transparent: true });
+const SHARED_HB_FG_GEO = new THREE.PlaneGeometry(barWidth - gap * 2, barHeight - gap * 2);
+
 // 3D health bar helpers
 export function create3DHealthBar() {
-  const width = 1.8, height = 0.18, gap = 0.03; // Much smaller
   const group = new THREE.Group();
 
-  const bg = new THREE.Mesh(
-    new THREE.PlaneGeometry(width, height),
-    new THREE.MeshBasicMaterial({ color: 0x000000, opacity: 0.4, transparent: true })
-  );
+  const bg = new THREE.Mesh(SHARED_HB_BG_GEO, SHARED_HB_BG_MAT);
 
-  const fg = new THREE.Mesh(
-    new THREE.PlaneGeometry(width - gap * 2, height - gap * 2),
-    new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true })
-  );
+  const fgMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true });
+  const fg = new THREE.Mesh(SHARED_HB_FG_GEO, fgMat);
 
   const fgContainer = new THREE.Group();
   fgContainer.add(fg);
   group.add(bg);
   group.add(fgContainer);
-  group.userData = { fg, fgContainer, width, height };
+  group.userData = { fg, fgContainer, width: barWidth, height: barHeight };
   return group;
 }
 

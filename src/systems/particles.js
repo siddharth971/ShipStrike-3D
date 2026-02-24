@@ -7,6 +7,33 @@ import { scene, water } from '../core/renderer';
 import { splashTexture, smokeTexture } from '../core/textures';
 import { SHELL_EJECT_SPEED } from '../core/config';
 
+export const particlePools = {
+  splash: [],
+  shell: [],
+  smoke: [],
+  debris: [],
+  flash: []
+};
+
+const SHARED_SPLASH_MAT = new THREE.SpriteMaterial({
+  map: splashTexture,
+  transparent: true,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending
+});
+
+const SHARED_SHELL_GEO = new THREE.BoxGeometry(0.06, 0.03, 0.02);
+const SHARED_SHELL_MAT = new THREE.MeshStandardMaterial({ color: 0x996633 });
+
+const SHARED_SMOKE_MAT = new THREE.SpriteMaterial({
+  map: smokeTexture,
+  transparent: true,
+  depthWrite: false
+});
+
+const SHARED_DEBRIS_GEO = new THREE.SphereGeometry(0.06, 6, 6);
+const SHARED_DEBRIS_MAT = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
+
 // Animated sprite splash (multiple particles)
 export function spawnSplashAtShip(ship) {
   const pos = new THREE.Vector3(ship.position.x, water.position.y + 0.02, ship.position.z);
@@ -15,13 +42,14 @@ export function spawnSplashAtShip(ship) {
 
 export function spawnSplashParticleBurst(position, count = 5, scale = 1.8) {
   for (let i = 0; i < count; i++) {
-    const mat = new THREE.SpriteMaterial({
-      map: splashTexture,
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending
-    });
-    const sp = new THREE.Sprite(mat);
+    let sp = particlePools.splash.pop();
+    if (!sp) {
+      sp = new THREE.Sprite(SHARED_SPLASH_MAT);
+      scene.add(sp);
+    }
+    sp.visible = true;
+    sp.material.opacity = 1;
+
     sp.position.copy(position).add(new THREE.Vector3(
       (Math.random() - 0.5) * 1.4,
       0.02,
@@ -31,6 +59,7 @@ export function spawnSplashParticleBurst(position, count = 5, scale = 1.8) {
     sp.scale.set(s, s, 1);
     // per-particle motion and life
     sp.userData = {
+      type: 'splash',
       life: 0,
       maxLife: 0.45 + Math.random() * 0.6,
       vel: new THREE.Vector3(
@@ -42,7 +71,6 @@ export function spawnSplashParticleBurst(position, count = 5, scale = 1.8) {
       startScale: s,
       endScale: s * 2.2
     };
-    scene.add(sp);
     state.particles.push(sp);
   }
 }
@@ -50,9 +78,13 @@ export function spawnSplashParticleBurst(position, count = 5, scale = 1.8) {
 // ---------------- shell debris & smoke ----------------
 export function spawnShellEject(position, direction) {
   // small capsule/box that flies off to the side
-  const g = new THREE.BoxGeometry(0.06, 0.03, 0.02);
-  const m = new THREE.MeshStandardMaterial({ color: 0x996633 });
-  const s = new THREE.Mesh(g, m);
+  let s = particlePools.shell.pop();
+  if (!s) {
+    s = new THREE.Mesh(SHARED_SHELL_GEO, SHARED_SHELL_MAT);
+    scene.add(s);
+  }
+  s.visible = true;
+  s.material.opacity = 1;
   s.position.copy(position);
 
   // random sidewards and upwards
@@ -72,24 +104,26 @@ export function spawnShellEject(position, direction) {
   }
 
   s.userData = {
+    type: 'shell',
     vel: ejectDir.multiplyScalar(SHELL_EJECT_SPEED * (0.7 + Math.random() * 0.6)),
     life: 0,
     maxLife: 1.2 + Math.random() * 0.8
   };
-  scene.add(s);
   state.debris.push(s);
 }
 
 export function spawnSmokeTrail(position, direction, life = 1.0, scale = 1.0) {
-  const mat = new THREE.SpriteMaterial({
-    map: smokeTexture,
-    transparent: true,
-    depthWrite: false
-  });
-  const sp = new THREE.Sprite(mat);
+  let sp = particlePools.smoke.pop();
+  if (!sp) {
+    sp = new THREE.Sprite(SHARED_SMOKE_MAT);
+    scene.add(sp);
+  }
+  sp.visible = true;
+  sp.material.opacity = 1;
   sp.position.copy(position);
   sp.scale.set(scale, scale, 1);
   sp.userData = {
+    type: 'smoke',
     vel: direction.clone()
       .multiplyScalar(6 * (0.6 + Math.random() * 0.8))
       .add(new THREE.Vector3(
@@ -100,18 +134,22 @@ export function spawnSmokeTrail(position, direction, life = 1.0, scale = 1.0) {
     life: 0,
     maxLife: life
   };
-  scene.add(sp);
   state.particles.push(sp);
 }
 
 // Spawn debris on impact
 export function spawnDebris(position, count = 6) {
   for (let i = 0; i < count; i++) {
-    const g = new THREE.SphereGeometry(0.06, 6, 6);
-    const m = new THREE.MeshStandardMaterial({ color: 0xaaaaaa });
-    const s = new THREE.Mesh(g, m);
+    let s = particlePools.debris.pop();
+    if (!s) {
+      s = new THREE.Mesh(SHARED_DEBRIS_GEO, SHARED_DEBRIS_MAT);
+      scene.add(s);
+    }
+    s.visible = true;
+    s.material.opacity = 1;
     s.position.copy(position);
     s.userData = {
+      type: 'debris',
       vel: new THREE.Vector3(
         (Math.random() - 0.5) * 5,
         Math.random() * 5 + 1,
@@ -120,7 +158,6 @@ export function spawnDebris(position, count = 6) {
       life: 0,
       maxLife: 0.8 + Math.random() * 0.8
     };
-    scene.add(s);
     state.particles.push(s);
   }
 }
@@ -155,8 +192,13 @@ export function updateParticles(delta) {
     }
 
     if (p.userData.life >= p.userData.maxLife) {
-      if (p.parent) p.parent.remove(p);
+      p.visible = false;
       state.particles.splice(i, 1);
+      if (p.userData.type && particlePools[p.userData.type]) {
+        particlePools[p.userData.type].push(p);
+      } else {
+        if (p.parent) p.parent.remove(p);
+      }
     }
   }
 
@@ -166,12 +208,16 @@ export function updateParticles(delta) {
     d.userData.life += delta;
     d.position.addScaledVector(d.userData.vel, delta);
     d.userData.vel.y -= 9.8 * delta * 0.8;
-    if (!d.material.transparent) d.material.transparent = true;
     d.material.opacity = Math.max(0, 1 - (d.userData.life / d.userData.maxLife));
 
     if (d.userData.life >= d.userData.maxLife) {
-      if (d.parent) d.parent.remove(d);
+      d.visible = false;
       state.debris.splice(i, 1);
+      if (d.userData.type && particlePools[d.userData.type]) {
+        particlePools[d.userData.type].push(d);
+      } else {
+        if (d.parent) d.parent.remove(d);
+      }
     }
   }
 }

@@ -14,8 +14,32 @@ import {
   CAMERA_SHAKE_INTENSITY
 } from '../core/config';
 import { splashTexture } from '../core/textures';
-import { spawnSplashParticleBurst, spawnShellEject, spawnSmokeTrail, spawnDebris } from './particles';
+import { spawnSplashParticleBurst, spawnShellEject, spawnSmokeTrail, spawnDebris, particlePools } from './particles';
 import { showGameOverUI } from './hud';
+
+export const cannonballPools = {};
+
+// Shared resources for cannonballs and flashes
+const SHARED_BALL_GEO = new THREE.SphereGeometry(CONFIG.BALL_RADIUS, 8, 8);
+const ballMaterials = {};
+
+function getBallMaterial(color) {
+  if (!ballMaterials[color]) {
+    ballMaterials[color] = new THREE.MeshStandardMaterial({
+      color,
+      metalness: 0.2,
+      roughness: 0.5
+    });
+  }
+  return ballMaterials[color];
+}
+
+const SHARED_FLASH_MAT = new THREE.SpriteMaterial({
+  map: splashTexture,
+  transparent: true,
+  depthWrite: false,
+  blending: THREE.AdditiveBlending
+});
 
 // =================== CANNONBALLS + firing with muzzle flash, recoil, shell eject ===================
 export function spawnCannonballFromShip(ownerShip, opts = {}) {
@@ -32,36 +56,37 @@ export function spawnCannonballFromShip(ownerShip, opts = {}) {
   const spawnPos = origin.clone().add(dir.clone().multiplyScalar(barrelLen));
 
   // create ball
-  const geo = new THREE.SphereGeometry(CONFIG.BALL_RADIUS, 8, 8);
-  const mat = new THREE.MeshStandardMaterial({
-    color: opts.color ?? 0x222222,
-    metalness: 0.2,
-    roughness: 0.5
-  });
-  const ball = new THREE.Mesh(geo, mat);
+  const ballColor = opts.color ?? 0x222222;
+  if (!cannonballPools[ballColor]) cannonballPools[ballColor] = [];
+
+  let ball = cannonballPools[ballColor].pop();
+  if (!ball) {
+    ball = new THREE.Mesh(SHARED_BALL_GEO, getBallMaterial(ballColor));
+    scene.add(ball);
+  }
+  ball.visible = true;
   ball.position.copy(spawnPos);
   ball.userData = {
+    colorKey: ballColor,
     velocity: dir.clone().multiplyScalar(opts.speed ?? CONFIG.BALL_SPEED),
     owner: opts.owner ?? (ownerShip.userData.isEnemy ? 'enemy' : 'player'),
     ownerShipRef: ownerShip,
     damage: opts.damage ?? CONFIG.BALL_DAMAGE,
     life: 0
   };
-  scene.add(ball);
   state.cannonballs.push(ball);
 
   // muzzle flash sprite (short-lived)
-  const mfMat = new THREE.SpriteMaterial({
-    map: splashTexture,
-    transparent: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending
-  });
-  const flash = new THREE.Sprite(mfMat);
+  let flash = particlePools.flash.pop();
+  if (!flash) {
+    flash = new THREE.Sprite(SHARED_FLASH_MAT);
+    scene.add(flash);
+  }
+  flash.visible = true;
+  flash.material.opacity = 1;
   flash.position.copy(spawnPos);
   flash.scale.set(MUZZLE_FLASH_SCALE, MUZZLE_FLASH_SCALE, 1);
-  flash.userData = { life: 0, maxLife: MUZZLE_FLASH_DURATION };
-  scene.add(flash);
+  flash.userData = { type: 'flash', life: 0, maxLife: MUZZLE_FLASH_DURATION };
   state.particles.push(flash);
 
   // recoil: set turret recoil state (we'll apply over time)
@@ -90,6 +115,14 @@ export function tryPlayerShoot() {
   lastPlayerShot = elapsed;
 }
 
+function destroyBall(ball, idx) {
+  ball.visible = false;
+  state.cannonballs.splice(idx, 1);
+  const pool = cannonballPools[ball.userData.colorKey];
+  if (pool) pool.push(ball);
+  else if (ball.parent) ball.parent.remove(ball);
+}
+
 // =================== Update cannonballs & handle collisions ===================
 export function updateCannonballs(delta) {
   for (let i = state.cannonballs.length - 1; i >= 0; i--) {
@@ -98,8 +131,7 @@ export function updateCannonballs(delta) {
     b.position.addScaledVector(b.userData.velocity, delta);
 
     if (b.userData.life > 6 || b.position.length() > 3000) {
-      if (b.parent) b.parent.remove(b);
-      state.cannonballs.splice(i, 1);
+      destroyBall(b, i);
       continue;
     }
 
@@ -111,8 +143,7 @@ export function updateCannonballs(delta) {
         state.player.userData.health -= b.userData.damage;
         spawnSplashParticleBurst(b.position.clone(), 3, 1.6);
         spawnDebris(b.position, 5);
-        if (b.parent) b.parent.remove(b);
-        state.cannonballs.splice(i, 1);
+        destroyBall(b, i);
         if (state.player.userData.health <= 0) handleShipDeath(state.player);
         continue;
       }
@@ -135,8 +166,7 @@ export function updateCannonballs(delta) {
       hitEnemy.userData.health -= b.userData.damage;
       spawnSplashParticleBurst(b.position.clone(), 4, 1.3);
       spawnDebris(b.position, 6);
-      if (b.parent) b.parent.remove(b);
-      state.cannonballs.splice(i, 1);
+      destroyBall(b, i);
       if (hitEnemy.userData.health <= 0) {
         state.kills++;
         state.score += 250;
@@ -151,8 +181,7 @@ export function updateCannonballs(delta) {
     if (b.position.y <= 0.2) {
       spawnSplashParticleBurst(b.position.clone(), 5, 1.8);
       water.addRippleAt(b.position.x, b.position.z, 0.08, 0.15);
-      if (b.parent) b.parent.remove(b);
-      state.cannonballs.splice(i, 1);
+      destroyBall(b, i);
       continue;
     }
 
@@ -194,7 +223,6 @@ export function updateSinking(delta) {
     s.mesh.rotation.x += 0.25 * delta;
     s.mesh.traverse((c) => {
       if (c.isMesh && c.material) {
-        if (!c.material.transparent) c.material.transparent = true;
         c.material.opacity = Math.max(0, 1 - t);
       }
     });

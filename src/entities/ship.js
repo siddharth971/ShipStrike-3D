@@ -64,16 +64,36 @@ export function applyShipSway(obj) {
 }
 
 // =================== SHIP LOADER (adds turret with muzzle) ===================
+let cachedShipBase = null;
+const barrelLen = 2.6 * (0.9 + SHIP_MODEL_SCALE * 0.05);
+const SHARED_BARREL_GEO = new THREE.CylinderGeometry(0.14, 0.14, barrelLen, 12);
+SHARED_BARREL_GEO.rotateX(Math.PI / 2); // cylinder default axis Y -> rotate to point +Z
+const SHARED_BARREL_MAT = new THREE.MeshStandardMaterial({ color: 0x111111 });
+
+// Cache materials by color to avoid creating too many and allow batching
+const shipMaterials = {};
+
 export function createShipOBJ(objUrl, color = 0x8b4513, onLoad) {
-  loader.load(objUrl, (obj) => {
+  const initShip = (baseObj) => {
+    const obj = baseObj.clone();
+
+    if (!shipMaterials[color]) {
+      shipMaterials[color] = new THREE.MeshStandardMaterial({
+        color,
+        metalness: 0.1,
+        roughness: 0.6,
+        depthWrite: true,
+        depthTest: true,
+        transparent: true // Enable from the start to avoid shader recompile when sinking
+      });
+    }
+
     obj.traverse((c) => {
       if (c.isMesh) {
-        c.material = new THREE.MeshStandardMaterial({ color, metalness: 0.1, roughness: 0.6 });
+        c.material = shipMaterials[color];
         c.castShadow = true;
         c.receiveShadow = true;
         c.renderOrder = 0;
-        c.material.depthWrite = true;
-        c.material.depthTest = true;
       }
     });
 
@@ -82,12 +102,8 @@ export function createShipOBJ(objUrl, color = 0x8b4513, onLoad) {
 
     // turret: group with barrel pointing local +Z
     const turret = new THREE.Group();
-    const barrelLen = 2.6 * (0.9 + SHIP_MODEL_SCALE * 0.05);
-    const barrel = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.14, 0.14, barrelLen, 12),
-      new THREE.MeshStandardMaterial({ color: 0x111111 })
-    );
-    barrel.rotation.x = Math.PI / 2; // cylinder default axis Y -> rotate to point +Z
+    const barrel = new THREE.Mesh(SHARED_BARREL_GEO, SHARED_BARREL_MAT);
+    // Already rotated in geometry
     barrel.position.set(0, 0.22, barrelLen * 0.2);
     barrel.scale.set(0.6, 0.4, 0.6);
     turret.add(barrel);
@@ -120,7 +136,16 @@ export function createShipOBJ(objUrl, color = 0x8b4513, onLoad) {
     scene.add(obj);
 
     if (onLoad) onLoad(obj);
-  }, undefined, (err) => console.error('OBJ load error', err));
+  };
+
+  if (cachedShipBase) {
+    initShip(cachedShipBase);
+  } else {
+    loader.load(objUrl, (obj) => {
+      cachedShipBase = obj;
+      initShip(cachedShipBase);
+    }, undefined, (err) => console.error('OBJ load error', err));
+  }
 }
 
 // =================== Turret recoil apply (moves turret forward/back) ===================
