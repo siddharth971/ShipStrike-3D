@@ -24,7 +24,7 @@ export function makeSplashTexture(size = 256, inner = '#e41818ff', outer = '#ff6
 // Smoke texture for trails/muzzle
 export function makeSmokeTexture() {
   const c = document.createElement('canvas');
-  c.width = c.height = 28;
+  c.width = c.height = 128;
   const ctx = c.getContext('2d');
   const grd = ctx.createRadialGradient(64, 64, 2, 64, 64, 64);
   grd.addColorStop(0, 'rgba(228, 0, 0, 0.9)');

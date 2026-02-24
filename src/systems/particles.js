@@ -75,6 +75,37 @@ export function spawnSplashParticleBurst(position, count = 5, scale = 1.8) {
   }
 }
 
+// ---------------- Foam wake trails ----------------
+export function spawnWake(position, spread = 4.0) {
+  let sp = particlePools.splash.pop();
+  if (!sp) {
+    sp = new THREE.Sprite(SHARED_SPLASH_MAT);
+    scene.add(sp);
+  }
+  sp.visible = true;
+  sp.material.opacity = 0.5;
+
+  sp.position.copy(position).add(new THREE.Vector3(
+    (Math.random() - 0.5) * spread,
+    0.05,
+    (Math.random() - 0.5) * spread
+  ));
+
+  const scale = 6.0 + Math.random() * 3.0; // Large foam patches
+  sp.scale.set(scale, scale, 1);
+
+  sp.userData = {
+    type: 'splash',
+    life: 0,
+    maxLife: 4.0 + Math.random() * 2.0, // Lasts a while
+    vel: new THREE.Vector3(0, 0, 0),    // Static on water
+    rotSpeed: (Math.random() - 0.5) * 0.2,
+    startScale: scale,
+    endScale: scale * 1.8
+  };
+  state.particles.push(sp);
+}
+
 // ---------------- shell debris & smoke ----------------
 export function spawnShellEject(position, direction) {
   // small capsule/box that flies off to the side

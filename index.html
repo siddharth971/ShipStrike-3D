@@ -18,16 +18,63 @@
   <div id="app"></div>
 
   <!-- Static HUD Layout -->
-  <div id="hud" style="position: fixed; right: 14px; top: 14px; color: white; font-family: Arial, sans-serif; z-index: 2000; text-align: right; pointer-events: none;">
+  <div id="hud"
+    style="position: fixed; right: 14px; top: 14px; color: white; font-family: Arial, sans-serif; z-index: 2000; text-align: right; pointer-events: none; text-shadow: 1px 1px 2px black;">
     <div id="hud-score" style="font-size:18px;margin-bottom:8px">Score: 0</div>
     <div id="hud-enemies" style="font-size:15px;margin-bottom:8px">Enemies: 0</div>
     <div id="hud-kills" style="font-size:15px;margin-bottom:12px">Kills: 0</div>
+    <div id="hud-health-container"
+      style="width: 200px; height: 20px; background: rgba(0,0,0,0.5); border: 2px solid #555; margin-top: 10px; float: right;">
+      <div id="hud-health-bar"
+        style="width: 100%; height: 100%; background: #29a329; transition: width 0.2s, background-color 0.2s;"></div>
+    </div>
+    <div style="clear: both; font-size: 14px; margin-top: 4px;">Health</div>
   </div>
 
-  <button id="restart-btn" style="position: fixed; left: 14px; top: 14px; z-index: 2000; padding: 8px 12px; font-size: 14px; cursor: pointer;">Restart</button>
+  <div id="crosshair"
+    style="position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 24px; height: 24px; border: 2px solid rgba(255,255,255,0.5); border-radius: 50%; pointer-events: none; z-index: 2000; display: flex; justify-content: center; align-items: center;">
+    <div style="width: 4px; height: 4px; background: rgba(255,255,255,0.8); border-radius: 50%;"></div>
+  </div>
 
-  <div id="game-over-screen" style="position: fixed; left: 0; top: 0; width: 100%; height: 100%; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); color: #fff; font-size: 36px; z-index: 10000; pointer-events: auto;">
-    <div style="text-align: center;">GAME OVER<br/><small style="font-size:16px">Press Restart</small></div>
+  <div id="lockon-indicator"
+    style="position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 50px; height: 50px; border: 3px solid rgba(255, 0, 0, 0.7); pointer-events: none; z-index: 2000; display: none; transition: 0.1s ease-out;">
+    <div
+      style="position: absolute; top: -5px; left: -5px; width: 10px; height: 10px; border-top: 3px solid red; border-left: 3px solid red;">
+    </div>
+    <div
+      style="position: absolute; top: -5px; right: -5px; width: 10px; height: 10px; border-top: 3px solid red; border-right: 3px solid red;">
+    </div>
+    <div
+      style="position: absolute; bottom: -5px; left: -5px; width: 10px; height: 10px; border-bottom: 3px solid red; border-left: 3px solid red;">
+    </div>
+    <div
+      style="position: absolute; bottom: -5px; right: -5px; width: 10px; height: 10px; border-bottom: 3px solid red; border-right: 3px solid red;">
+    </div>
+  </div>
+
+  <button id="restart-btn"
+    style="position: fixed; left: 14px; top: 14px; z-index: 2000; padding: 8px 12px; font-size: 14px; cursor: pointer; display: none;">Restart</button>
+
+  <div id="fps-counter"
+    style="position: fixed; left: 14px; bottom: 14px; color: #00ff00; background: rgba(0,0,0,0.7); padding: 4px 8px; font-family: monospace; font-size: 14px; z-index: 2000; pointer-events: none; border: 1px solid #333; border-radius: 4px;">
+    FPS: 0</div>
+
+  <div id="game-over-screen"
+    style="position: fixed; left: 0; top: 0; width: 100%; height: 100%; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.8); color: #fff; font-family: Arial, sans-serif; z-index: 10000; pointer-events: auto; flex-direction: column;">
+    <div
+      style="text-align: center; border: 2px solid #555; background: rgba(0,0,0,0.9); padding: 40px; border-radius: 12px; box-shadow: 0px 0px 30px rgba(255,0,0,0.4);">
+      <div
+        style="font-size: 56px; font-weight: bold; color: #ff3333; margin-bottom: 25px; text-shadow: 2px 2px 4px black; letter-spacing: 2px;">
+        GAME OVER</div>
+      <div id="go-score" style="font-size: 26px; margin-bottom: 12px;">Final Score: 0</div>
+      <div id="go-kills" style="font-size: 20px; margin-bottom: 15px; color: #ccc;">Ships Destroyed: 0</div>
+      <div id="go-highscore"
+        style="font-size: 22px; color: #ffd700; margin-bottom: 35px; text-shadow: 1px 1px 2px black;">High Score: 0
+      </div>
+      <button id="go-restart-btn"
+        style="padding: 14px 35px; font-size: 22px; cursor: pointer; background: #29a329; color: white; border: none; border-radius: 6px; font-weight: bold; box-shadow: 0px 4px 6px rgba(0,0,0,0.5); transition: background 0.2s;">PLAY
+        AGAIN</button>
+    </div>
   </div>
 
   <script type="module" src="/src/main.js"></script>

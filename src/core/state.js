@@ -18,6 +18,8 @@ export const state = {
   debris: [],                       // shell casings, etc.
   score: 0,
   kills: 0,
+  waveTimer: 0,
+  waveCount: 1,
 
   lockOn: false,
   lockTarget: null,

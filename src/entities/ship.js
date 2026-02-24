@@ -6,7 +6,7 @@ import { state } from '../core/state';
 import { scene, loader, water, clock } from '../core/renderer';
 import { CONFIG, SHIP_MODEL_SCALE, SWAY } from '../core/config';
 import { attachHealthBarToShip } from '../systems/healthbar';
-import { spawnSplashAtShip } from '../systems/particles';
+import { spawnSplashAtShip, spawnWake } from '../systems/particles';
 
 // =================== CORE: place ship above water & radius ===================
 export function setShipAboveWater(obj, waterY = 0, clearance = 0.02) {
@@ -35,6 +35,7 @@ export function setupShipSway(obj) {
   obj.userData.sway = { amp, freq, phase, rollAmp: SWAY.rollAmp, pitchAmp: SWAY.pitchAmp };
   obj.userData._prevSwayOffset = 0;
   obj.userData._lastSplashTime = -999;
+  obj.userData._prevPos = obj.position.clone();
 }
 
 export function applyShipSway(obj) {
@@ -61,6 +62,19 @@ export function applyShipSway(obj) {
     }
   }
   obj.userData._prevSwayOffset = offset;
+
+  // Wake effect if moving
+  if (obj.userData._prevPos) {
+    const dx = obj.position.x - obj.userData._prevPos.x;
+    const dz = obj.position.z - obj.userData._prevPos.z;
+    if (Math.hypot(dx, dz) > 0.05 && Math.random() < 0.25) {
+      // Spawn at rear of ship
+      const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(obj.quaternion);
+      const rear = obj.position.clone().add(forward.multiplyScalar(-15.0));
+      spawnWake(rear, 4.0);
+    }
+  }
+  obj.userData._prevPos = obj.position.clone();
 }
 
 // =================== SHIP LOADER (adds turret with muzzle) ===================
@@ -94,6 +108,7 @@ export function createShipOBJ(objUrl, color = 0x8b4513, onLoad) {
         c.castShadow = true;
         c.receiveShadow = true;
         c.renderOrder = 0;
+        c.frustumCulled = true; // explicitly ensure distant meshes are culled out safely
       }
     });
 

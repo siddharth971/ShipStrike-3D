@@ -2,7 +2,7 @@
 // Enemy AI and behavior
 
 import * as THREE from 'three';
-import { state } from '../core/state';
+import { state, gameOver } from '../core/state';
 import { clock } from '../core/renderer';
 import { CONFIG, SHIP_MODEL_SCALE } from '../core/config';
 import { createShipOBJ, applyShipSway, applyTurretRecoil } from './ship';
@@ -57,7 +57,33 @@ export function spawnEnemyAt(x, z) {
 
 // =================== Enemy AI (pursue & separate) ===================
 export function updateEnemies(delta, elapsed) {
-  if (!state.player) return;
+  if (!state.player || gameOver) return;
+
+  // --- Wave Spawning Logic ---
+  const TIME_BETWEEN_WAVES = 20;
+
+  // Speed up spawn timer if there are no enemies left
+  if (state.enemies.length === 0) {
+    state.waveTimer += delta * 2;
+  } else {
+    state.waveTimer += delta;
+  }
+
+  if (state.waveTimer >= TIME_BETWEEN_WAVES) {
+    state.waveTimer = 0;
+    state.waveCount++;
+
+    // Increase spawn amount with wave, cap at 8
+    const spawnCount = Math.min(2 + Math.floor(state.waveCount / 2), 8);
+    for (let i = 0; i < spawnCount; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 600 + Math.random() * 400; // Spawn far away (outside view)
+      const spawnX = state.player.position.x + Math.cos(angle) * dist;
+      const spawnZ = state.player.position.z + Math.sin(angle) * dist;
+      spawnEnemyAt(spawnX, spawnZ);
+    }
+  }
+  // ---------------------------
 
   const shipRad = CONFIG.SHIP_RADIUS * SHIP_MODEL_SCALE;
 
@@ -91,26 +117,47 @@ export function updateEnemies(delta, elapsed) {
     // Increased distance checks for massive scale
     const avoidDist = shipRad * 2.5;
 
-    if (dist > shipRad * 3) {
-      const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(en.quaternion);
-      const avoid = new THREE.Vector3();
-      for (let j = 0; j < state.enemies.length; j++) {
-        if (i === j) continue;
-        const other = state.enemies[j];
-        if (!other || other.userData.dead) continue;
-        const dv = new THREE.Vector3().subVectors(en.position, other.position);
-        const d = dv.length();
-        if (d < avoidDist && d > 0.001) {
-          avoid.add(dv.normalize().multiplyScalar((avoidDist - d) * 0.5));
-        }
-      }
-      en.position.addScaledVector(forward, CONFIG.ENEMY_MOVE_SPEED * delta);
-      en.position.addScaledVector(avoid, delta);
+    // AI State Machine
+    if (!en.userData.state) en.userData.state = 'chase';
+
+    // Determine state
+    if (dist > shipRad * 6) {
+      en.userData.state = 'chase';
+    } else if (dist < shipRad * 3) {
+      en.userData.state = 'evade';
     } else {
-      // Idle bobbing
-      en.position.x += Math.sin(elapsed * 0.5 + i) * 0.05;
-      en.position.z += Math.cos(elapsed * 0.4 + i) * 0.05;
+      en.userData.state = 'strafe';
     }
+
+    // Movement vector
+    const moveDir = new THREE.Vector3();
+
+    if (en.userData.state === 'chase') {
+      // Move toward player
+      moveDir.set(0, 0, 1).applyQuaternion(en.quaternion);
+    } else if (en.userData.state === 'strafe') {
+      // Circle player
+      moveDir.set(1, 0, 0).applyQuaternion(en.quaternion); // Strafe right
+    } else if (en.userData.state === 'evade') {
+      // Move away
+      moveDir.set(0, 0, -1).applyQuaternion(en.quaternion);
+    }
+
+    // Avoid others
+    const avoid = new THREE.Vector3();
+    for (let j = 0; j < state.enemies.length; j++) {
+      if (i === j) continue;
+      const other = state.enemies[j];
+      if (!other || other.userData.dead) continue;
+      const dv = new THREE.Vector3().subVectors(en.position, other.position);
+      const d = dv.length();
+      if (d < avoidDist && d > 0.001) {
+        avoid.add(dv.normalize().multiplyScalar((avoidDist - d) * 0.5));
+      }
+    }
+
+    en.position.addScaledVector(moveDir, CONFIG.ENEMY_MOVE_SPEED * delta);
+    en.position.addScaledVector(avoid, delta);
 
     // apply sway (so enemies bob)
     applyShipSway(en);

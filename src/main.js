@@ -64,6 +64,16 @@ function animate() {
     if (e) updateShipHealthBar(e);
   }
 
+  // FPS tracking
+  state._frames = (state._frames || 0) + 1;
+  state._lastFpsTime = state._lastFpsTime || 0;
+  if (elapsed - state._lastFpsTime >= 1.0) {
+    const fpsEl = document.getElementById('fps-counter');
+    if (fpsEl) fpsEl.innerText = `FPS: ${state._frames}`;
+    state._frames = 0;
+    state._lastFpsTime = elapsed;
+  }
+
   // Render
   updateHUD();
   composer.render(delta);

@@ -128,6 +128,10 @@ export function updateCannonballs(delta) {
   for (let i = state.cannonballs.length - 1; i >= 0; i--) {
     const b = state.cannonballs[i];
     b.userData.life += delta;
+
+    // Apply gravity
+    b.userData.velocity.y -= 40 * delta;
+
     b.position.addScaledVector(b.userData.velocity, delta);
 
     if (b.userData.life > 6 || b.position.length() > 3000) {
