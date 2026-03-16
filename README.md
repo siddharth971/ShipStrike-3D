@@ -15,7 +15,3 @@ A real-time water shader demo built with Three.js that features:
 - Caustics effect
 - Interactive parameters via Tweakpane UI
 
-## Links
-
-- [Live Demo](https://dgreenheck.github.io/threejs-water-shader/)
-- [Tutorial](https://youtu.be/jK4uXGY07vA)
