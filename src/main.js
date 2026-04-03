@@ -26,7 +26,6 @@ async function initializeMultiplayer() {
     // Get server URL from environment or default
     const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000';
 
-    console.log('🔌 Connecting to multiplayer server...');
     await networkManager.connect(serverUrl);
 
     // Generate username
@@ -46,8 +45,7 @@ async function initializeMultiplayer() {
     networkManager.onProjectileSpawned = handleProjectileSpawned;
 
   } catch (error) {
-    console.warn('⚠️ Multiplayer initialization failed, running in single-player mode');
-    console.warn(error);
+    // Silently fail - server not available, run single-player mode
     multiplayerEnabled = false;
   }
 }

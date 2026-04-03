@@ -1,7 +1,7 @@
 // src/core/network.js
 // Network manager for multiplayer synchronization
 
-import { io } from 'https://cdn.socket.io/4.7.2/socket.io.min.js';
+import io from 'socket.io-client';
 
 class NetworkManager {
   constructor() {
@@ -86,13 +86,17 @@ class NetworkManager {
       try {
         this.socket = io(serverUrl, {
           transports: ['websocket', 'polling'],
-          reconnection: true,
-          reconnectionDelay: 1000,
-          reconnectionDelayMax: 5000,
-          reconnectionAttempts: 5
+          reconnection: false,
+          connectTimeout: 3000
         });
 
+        const timeout = setTimeout(() => {
+          this.socket.disconnect();
+          reject(new Error('Connection timeout - server not available'));
+        }, 3000);
+
         this.socket.on('connect', () => {
+          clearTimeout(timeout);
           console.log('✅ Connected to game server');
           this.connected = true;
           this.setupEventListeners();
@@ -100,20 +104,20 @@ class NetworkManager {
         });
 
         this.socket.on('connect_error', (error) => {
-          console.error('❌ Connection error:', error);
+          clearTimeout(timeout);
           this.connected = false;
-          if (this.onError) this.onError(error);
           reject(error);
         });
 
         this.socket.on('disconnect', (reason) => {
-          console.log('⚠️ Disconnected from server:', reason);
+          if (this.connected) {
+            console.log('⚠️ Disconnected from server:', reason);
+          }
           this.connected = false;
           this.authenticated = false;
         });
 
         this.socket.on('error', (data) => {
-          console.error('Server error:', data);
           if (this.onError) this.onError(data);
         });
       } catch (error) {
