@@ -37,7 +37,15 @@ const gameState = {
   // Phase 2
   winds: new Map(), // matchId -> windData
   crews: new Map(), // shipId -> crewData
-  sailors: new Map() // playerId -> sailorData
+  sailors: new Map(), // playerId -> sailorData
+  // Phase 3
+  accounts: new Map(), // playerId -> accountData
+  gold: new Map(), // playerId -> goldAmount
+  upgrades: new Map(), // playerId -> upgradeData
+  friends: new Map(), // playerId -> Set<friendId>
+  clans: new Map(), // clanId -> clanData
+  clanMembers: new Map(), // playerId -> clanId
+  leaderboards: new Map() // type -> [playerData]
 };
 
 // =================== CONSTANTS ===================
@@ -570,6 +578,215 @@ io.on('connection', (socket) => {
         y: Math.sin(wind.direction) * wind.speed
       }
     });
+  });
+
+  // =================== PHASE 3: ECONOMY & PROGRESSION ==========
+
+  // Upgrade ship stat
+  socket.on('upgradeShip', (data) => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player) return;
+
+    const upgrades = gameState.upgrades.get(player.id) || {};
+    const currentGold = gameState.gold.get(player.id) || 0;
+    const upgradeType = data.upgradeType; // cannon, armor, speed, sails, health, fireRate
+    const currentLevel = upgrades[upgradeType] || 0;
+
+    // Upgrade costs (base cost)
+    const upgradeCosts = {
+      cannon: 500, armor: 400, speed: 600, sails: 450, health: 350, fireRate: 550
+    };
+    const multiplier = 1.5;
+    const nextLevel = currentLevel + 1;
+    const cost = Math.floor((upgradeCosts[upgradeType] || 500) * Math.pow(multiplier, nextLevel - 1));
+
+    if (currentGold < cost) {
+      socket.emit('error', { message: 'Insufficient gold for upgrade' });
+      return;
+    }
+
+    // Apply upgrade
+    upgrades[upgradeType] = nextLevel;
+    gameState.upgrades.set(player.id, upgrades);
+    gameState.gold.set(player.id, currentGold - cost);
+
+    socket.emit('upgradeSuccess', {
+      upgradeType,
+      newLevel: nextLevel,
+      goldSpent: cost,
+      goldRemaining: currentGold - cost
+    });
+
+    console.log(`⚙️ ${player.username} upgraded ${upgradeType} to level ${nextLevel}`);
+  });
+
+  // Get upgrades
+  socket.on('getUpgrades', () => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player) return;
+
+    const upgrades = gameState.upgrades.get(player.id) || {};
+    socket.emit('upgradesData', { upgrades });
+  });
+
+  // Get gold
+  socket.on('getGold', () => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player) return;
+
+    const gold = gameState.gold.get(player.id) || 0;
+    socket.emit('goldData', { gold });
+  });
+
+  // Get leaderboard
+  socket.on('getLeaderboard', (data) => {
+    const type = data.type || 'kills'; // kills, damage, wealth, shipsSunk, level
+    const limit = data.limit || 100;
+
+    const board = gameState.leaderboards.get(type) || [];
+    socket.emit('leaderboardData', {
+      type,
+      entries: board.slice(0, limit).map((entry, i) => ({
+        rank: i + 1,
+        ...entry
+      }))
+    });
+  });
+
+  // Send friend request
+  socket.on('sendFriendRequest', (data) => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player) return;
+
+    const targetPlayerId = data.targetPlayerId;
+    const targetSocket = io.sockets.sockets.get(
+      Array.from(gameState.players.values()).find(p => p.id === targetPlayerId)?.socketId
+    );
+
+    if (targetSocket) {
+      targetSocket.emit('friendRequestReceived', {
+        senderId: player.id,
+        senderUsername: player.username
+      });
+      socket.emit('friendRequestSent', { targetPlayerId });
+    }
+  });
+
+  // Accept friend request
+  socket.on('acceptFriendRequest', (data) => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player) return;
+
+    const senderId = data.senderId;
+
+    // Add to both players' friend lists
+    let playerFriends = gameState.friends.get(player.id) || new Set();
+    playerFriends.add(senderId);
+    gameState.friends.set(player.id, playerFriends);
+
+    let senderFriends = gameState.friends.get(senderId) || new Set();
+    senderFriends.add(player.id);
+    gameState.friends.set(senderId, senderFriends);
+
+    socket.emit('friendAdded', { friendId: senderId });
+  });
+
+  // Get friends
+  socket.on('getFriends', () => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player) return;
+
+    const friends = gameState.friends.get(player.id) || new Set();
+    const friendList = Array.from(friends).map(id => {
+      const friend = gameState.players.get(id);
+      return friend ? { id, username: friend.username, online: true } : null;
+    }).filter(Boolean);
+
+    socket.emit('friendsData', { friends: friendList });
+  });
+
+  // Create clan
+  socket.on('createClan', (data) => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player) return;
+
+    const clanId = uuidv4();
+    const clan = {
+      clanId,
+      name: data.clanName,
+      leaderId: player.id,
+      members: new Set([player.id]),
+      treasury: 0,
+      level: 1
+    };
+
+    gameState.clans.set(clanId, clan);
+    gameState.clanMembers.set(player.id, clanId);
+
+    socket.emit('clanCreated', { clanId, clanName: data.clanName });
+    console.log(`⚔️ Clan created: ${data.clanName} by ${player.username}`);
+  });
+
+  // Join clan
+  socket.on('joinClan', (data) => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player) return;
+
+    const clan = gameState.clans.get(data.clanId);
+    if (!clan) {
+      socket.emit('error', { message: 'Clan not found' });
+      return;
+    }
+
+    if (clan.members.size >= 50) {
+      socket.emit('error', { message: 'Clan is full' });
+      return;
+    }
+
+    clan.members.add(player.id);
+    gameState.clanMembers.set(player.id, data.clanId);
+
+    socket.emit('clanJoined', { clanId: data.clanId });
+    console.log(`⚔️ ${player.username} joined clan ${clan.name}`);
+  });
+
+  // Get clan info
+  socket.on('getClanInfo', (data) => {
+    const clan = gameState.clans.get(data.clanId);
+    if (clan) {
+      socket.emit('clanData', {
+        clanId: clan.clanId,
+        name: clan.name,
+        leaderId: clan.leaderId,
+        memberCount: clan.members.size,
+        treasury: clan.treasury,
+        level: clan.level
+      });
+    }
+  });
+
+  // Clan chat
+  socket.on('clanChat', (data) => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player) return;
+
+    const clanId = gameState.clanMembers.get(player.id);
+    if (!clanId) return;
+
+    const clan = gameState.clans.get(clanId);
+    if (clan) {
+      // Broadcast to all clan members
+      clan.members.forEach(memberId => {
+        const memberPlayer = gameState.players.get(memberId);
+        if (memberPlayer) {
+          io.to(memberPlayer.socketId).emit('clanChatMessage', {
+            senderName: player.username,
+            message: data.message,
+            timestamp: Date.now()
+          });
+        }
+      });
+    }
   });
 
   // Disconnect

@@ -33,6 +33,20 @@ class NetworkManager {
     this.onStationInteraction = null;
     this.onMinimapData = null;
 
+    // Callbacks - Phase 3
+    this.onUpgradeSuccess = null;
+    this.onUpgradesData = null;
+    this.onGoldData = null;
+    this.onLeaderboardData = null;
+    this.onFriendRequestReceived = null;
+    this.onFriendRequestSent = null;
+    this.onFriendAdded = null;
+    this.onFriendsData = null;
+    this.onClanCreated = null;
+    this.onClanJoined = null;
+    this.onClanData = null;
+    this.onClanChatMessage = null;
+
     // State tracking
     this.remoteShips = new Map();
     this.projectiles = new Map();
@@ -454,6 +468,105 @@ class NetworkManager {
     this.socket.emit('getWindData', {});
   }
 
+  // ========== PHASE 3: Progression & Economy ==========
+
+  /**
+   * Upgrade ship stat
+   * @param {string} upgradeType - Type (cannon, armor, speed, sails, health, fireRate)
+   */
+  upgradeShip(upgradeType) {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('upgradeShip', { upgradeType });
+  }
+
+  /**
+   * Request upgrades data
+   */
+  requestUpgrades() {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('getUpgrades', {});
+  }
+
+  /**
+   * Request player's gold amount
+   */
+  requestGold() {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('getGold', {});
+  }
+
+  /**
+   * Request leaderboard
+   * @param {string} type - Type (kills, damage, wealth, shipsSunk, level)
+   * @param {number} limit - Number of entries to retrieve
+   */
+  requestLeaderboard(type = 'kills', limit = 100) {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('getLeaderboard', { type, limit });
+  }
+
+  /**
+   * Send friend request
+   * @param {string} targetPlayerId - Target player ID
+   */
+  sendFriendRequest(targetPlayerId) {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('sendFriendRequest', { targetPlayerId });
+  }
+
+  /**
+   * Accept friend request
+   * @param {string} senderId - Request sender ID
+   */
+  acceptFriendRequest(senderId) {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('acceptFriendRequest', { senderId });
+  }
+
+  /**
+   * Request friends list
+   */
+  requestFriends() {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('getFriends', {});
+  }
+
+  /**
+   * Create a clan
+   * @param {string} clanName - Clan name
+   */
+  createClan(clanName) {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('createClan', { clanName });
+  }
+
+  /**
+   * Join a clan
+   * @param {string} clanId - Clan ID
+   */
+  joinClan(clanId) {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('joinClan', { clanId });
+  }
+
+  /**
+   * Request clan info
+   * @param {string} clanId - Clan ID
+   */
+  getClanInfo(clanId) {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('getClanInfo', { clanId });
+  }
+
+  /**
+   * Send clan chat message
+   * @param {string} message - Message text
+   */
+  sendClanChat(message) {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('clanChat', { message });
+  }
+
   // ========== PHASE 2: Event Callbacks Setup ==========
 
   /**
@@ -487,6 +600,66 @@ class NetworkManager {
     // Minimap data
     this.socket.on('minimapData', (data) => {
       if (this.onMinimapData) this.onMinimapData(data);
+    });
+
+    // Phase 3 events
+    this.setupPhase3Events();
+  }
+
+  /**
+   * Setup all Phase 3 event listeners
+   */
+  setupPhase3Events() {
+    // Economy events
+    this.socket.on('upgradeSuccess', (data) => {
+      if (this.onUpgradeSuccess) this.onUpgradeSuccess(data);
+    });
+
+    this.socket.on('upgradesData', (data) => {
+      if (this.onUpgradesData) this.onUpgradesData(data);
+    });
+
+    this.socket.on('goldData', (data) => {
+      if (this.onGoldData) this.onGoldData(data);
+    });
+
+    // Leaderboard events
+    this.socket.on('leaderboardData', (data) => {
+      if (this.onLeaderboardData) this.onLeaderboardData(data);
+    });
+
+    // Friends events
+    this.socket.on('friendRequestReceived', (data) => {
+      if (this.onFriendRequestReceived) this.onFriendRequestReceived(data);
+    });
+
+    this.socket.on('friendRequestSent', (data) => {
+      if (this.onFriendRequestSent) this.onFriendRequestSent(data);
+    });
+
+    this.socket.on('friendAdded', (data) => {
+      if (this.onFriendAdded) this.onFriendAdded(data);
+    });
+
+    this.socket.on('friendsData', (data) => {
+      if (this.onFriendsData) this.onFriendsData(data);
+    });
+
+    // Clan events
+    this.socket.on('clanCreated', (data) => {
+      if (this.onClanCreated) this.onClanCreated(data);
+    });
+
+    this.socket.on('clanJoined', (data) => {
+      if (this.onClanJoined) this.onClanJoined(data);
+    });
+
+    this.socket.on('clanData', (data) => {
+      if (this.onClanData) this.onClanData(data);
+    });
+
+    this.socket.on('clanChatMessage', (data) => {
+      if (this.onClanChatMessage) this.onClanChatMessage(data);
     });
   }
 }
