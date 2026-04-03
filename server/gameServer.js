@@ -50,7 +50,13 @@ const gameState = {
   boardings: new Map(), // boardingId -> boardingData
   combats: new Map(), // combatId -> combatData
   crewCombatants: new Map(), // playerId -> combatState
-  bots: new Map() // playerId -> botData
+  bots: new Map(), // playerId -> botData
+  // Phase 5
+  gameModes: new Map(), // matchId -> modeType (teamflags, trading)
+  teamData: new Map(), // matchId -> { red: {...}, blue: {...} }
+  flags: new Map(), // matchId -> { flagId -> flagData }
+  ports: new Map(), // matchId -> { portId -> portData }
+  playerInventories: new Map() // playerId -> inventoryData
 };
 
 // =================== CONSTANTS ===================
@@ -1001,6 +1007,243 @@ io.on('connection', (socket) => {
         stats: bot.stats
       });
     }
+  });
+
+  // =================== PHASE 5: GAME MODES ===================
+
+  // Set game mode (teamflags or trading)
+  socket.on('setGameMode', (data) => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player || !player.matchId) return;
+
+    const modeType = data.modeType; // 'teamflags' or 'trading'
+    const match = gameState.matches.get(player.matchId);
+    if (!match) return;
+
+    gameState.gameModes.set(player.matchId, modeType);
+
+    if (modeType === 'teamflags') {
+      // Initialize team data
+      gameState.teamData.set(player.matchId, {
+        red: { players: new Set(), score: 0 },
+        blue: { players: new Set(), score: 0 }
+      });
+
+      gameState.flags.set(player.matchId, new Map());
+    } else if (modeType === 'trading') {
+      gameState.ports.set(player.matchId, new Map());
+      gameState.playerInventories.set(player.id, {
+        playerId: player.id,
+        gold: 1000,
+        cargo: {}
+      });
+    }
+
+    io.to(`match:${player.matchId}`).emit('gameModeChanged', {
+      modeType: modeType,
+      message: `Game mode set to: ${modeType}`
+    });
+
+    console.log(`🎮 Match ${player.matchId.substring(0, 8)}... set to mode: ${modeType}`);
+  });
+
+  // Join team (for teamflags mode)
+  socket.on('joinTeam', (data) => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player || !player.matchId) return;
+
+    const teamId = data.teamId; // 'red' or 'blue'
+    const teamData = gameState.teamData.get(player.matchId);
+    if (!teamData) return;
+
+    // Remove from other team if already on one
+    if (teamData.red.players.has(player.id)) {
+      teamData.red.players.delete(player.id);
+    }
+    if (teamData.blue.players.has(player.id)) {
+      teamData.blue.players.delete(player.id);
+    }
+
+    // Add to new team
+    teamData[teamId].players.add(player.id);
+
+    socket.emit('teamJoined', { teamId, teamName: teamId.toUpperCase() });
+    io.to(`match:${player.matchId}`).emit('teamUpdated', {
+      teamId: teamId,
+      playerCount: teamData[teamId].players.size
+    });
+
+    console.log(`🚩 ${player.username} joined ${teamId} team`);
+  });
+
+  // Pick up flag (for teamflags mode)
+  socket.on('pickupFlag', (data) => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player || !player.matchId) return;
+
+    const flagId = data.flagId;
+    const flags = gameState.flags.get(player.matchId);
+    if (!flags || !flags.has(flagId)) return;
+
+    const flag = flags.get(flagId);
+    flag.carrierId = player.id;
+    flag.state = 'carried';
+
+    io.to(`match:${player.matchId}`).emit('flagPickedUp', {
+      flagId: flagId,
+      carrierId: player.id,
+      carrierName: player.username
+    });
+
+    console.log(`🚩 ${player.username} picked up flag ${flagId}`);
+  });
+
+  // Drop flag (for teamflags mode)
+  socket.on('dropFlag', (data) => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player || !player.matchId) return;
+
+    const flagId = data.flagId;
+    const flags = gameState.flags.get(player.matchId);
+    if (!flags || !flags.has(flagId)) return;
+
+    const flag = flags.get(flagId);
+    flag.carrierId = null;
+    flag.state = 'at_base';
+    flag.x = data.x;
+    flag.y = data.y;
+
+    io.to(`match:${player.matchId}`).emit('flagDropped', {
+      flagId: flagId,
+      x: data.x,
+      y: data.y,
+      droppedBy: player.username
+    });
+
+    console.log(`🚩 ${player.username} dropped flag`);
+  });
+
+  // Dock at port (for trading mode)
+  socket.on('dockAtPort', (data) => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player) return;
+
+    const portId = data.portId;
+
+    // Initialize inventory if needed
+    if (!gameState.playerInventories.has(player.id)) {
+      gameState.playerInventories.set(player.id, {
+        playerId: player.id,
+        gold: 1000,
+        cargo: {}
+      });
+    }
+
+    socket.emit('dockedAtPort', {
+      portId: portId,
+      portName: data.portName,
+      inventory: gameState.playerInventories.get(player.id)
+    });
+
+    console.log(`⛴️ ${player.username} docked at ${data.portName}`);
+  });
+
+  // Buy commodity (for trading mode)
+  socket.on('buyCommodity', (data) => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player) return;
+
+    const inventory = gameState.playerInventories.get(player.id);
+    if (!inventory) {
+      socket.emit('error', { message: 'No inventory' });
+      return;
+    }
+
+    const commodity = data.commodity;
+    const quantity = data.quantity;
+    const price = data.price;
+    const totalCost = price * quantity;
+
+    if (inventory.gold < totalCost) {
+      socket.emit('error', { message: 'Insufficient gold' });
+      return;
+    }
+
+    // Execute purchase
+    inventory.gold -= totalCost;
+    inventory.cargo[commodity] = (inventory.cargo[commodity] || 0) + quantity;
+
+    socket.emit('commodityBought', {
+      commodity: commodity,
+      quantity: quantity,
+      totalCost: totalCost,
+      goldRemaining: inventory.gold
+    });
+
+    console.log(`💰 ${player.username} bought ${quantity}x ${commodity} for ${totalCost}g`);
+  });
+
+  // Sell commodity (for trading mode)
+  socket.on('sellCommodity', (data) => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player) return;
+
+    const inventory = gameState.playerInventories.get(player.id);
+    if (!inventory) {
+      socket.emit('error', { message: 'No inventory' });
+      return;
+    }
+
+    const commodity = data.commodity;
+    const quantity = data.quantity;
+    const price = data.price;
+    const totalRevenue = price * quantity;
+
+    if ((inventory.cargo[commodity] || 0) < quantity) {
+      socket.emit('error', { message: 'Insufficient inventory' });
+      return;
+    }
+
+    // Execute sale
+    inventory.gold += totalRevenue;
+    inventory.cargo[commodity] -= quantity;
+
+    socket.emit('commoditySold', {
+      commodity: commodity,
+      quantity: quantity,
+      totalRevenue: totalRevenue,
+      goldRemaining: inventory.gold
+    });
+
+    console.log(`💰 ${player.username} sold ${quantity}x ${commodity} for ${totalRevenue}g`);
+  });
+
+  // Get game mode info
+  socket.on('getGameModeInfo', () => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player || !player.matchId) return;
+
+    const modeType = gameState.gameModes.get(player.matchId);
+
+    let modeInfo = {
+      modeType: modeType
+    };
+
+    if (modeType === 'teamflags') {
+      const teamData = gameState.teamData.get(player.matchId);
+      modeInfo.teams = {
+        red: { playerCount: teamData?.red.players.size || 0, score: teamData?.red.score || 0 },
+        blue: { playerCount: teamData?.blue.players.size || 0, score: teamData?.blue.score || 0 }
+      };
+    } else if (modeType === 'trading') {
+      const inventory = gameState.playerInventories.get(player.id);
+      modeInfo.playerStats = inventory ? {
+        gold: inventory.gold,
+        cargo: inventory.cargo
+      } : null;
+    }
+
+    socket.emit('gameModeInfo', modeInfo);
   });
 
   // Disconnect

@@ -58,6 +58,17 @@ class NetworkManager {
     this.onBotConfigChanged = null;
     this.onBotStatus = null;
 
+    // Callbacks - Phase 5
+    this.onGameModeChanged = null;
+    this.onTeamJoined = null;
+    this.onTeamUpdated = null;
+    this.onFlagPickedUp = null;
+    this.onFlagDropped = null;
+    this.onDockedAtPort = null;
+    this.onCommodityBought = null;
+    this.onCommoditySold = null;
+    this.onGameModeInfo = null;
+
     // State tracking
     this.remoteShips = new Map();
     this.projectiles = new Map();
@@ -643,6 +654,86 @@ class NetworkManager {
     this.socket.emit('getBotStatus', {});
   }
 
+  // ========== PHASE 5: Game Modes ==========
+
+  /**
+   * Set game mode
+   * @param {string} modeType - Mode type ('teamflags' or 'trading')
+   */
+  setGameMode(modeType) {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('setGameMode', { modeType });
+  }
+
+  /**
+   * Join a team (for teamflags mode)
+   * @param {string} teamId - Team ID ('red' or 'blue')
+   */
+  joinTeam(teamId) {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('joinTeam', { teamId });
+  }
+
+  /**
+   * Pick up a flag (for teamflags mode)
+   * @param {string} flagId - Flag ID
+   */
+  pickupFlag(flagId) {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('pickupFlag', { flagId });
+  }
+
+  /**
+   * Drop a flag (for teamflags mode)
+   * @param {string} flagId - Flag ID
+   * @param {number} x - X position
+   * @param {number} y - Y position
+   */
+  dropFlag(flagId, x, y) {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('dropFlag', { flagId, x, y });
+  }
+
+  /**
+   * Dock at port (for trading mode)
+   * @param {string} portId - Port ID
+   * @param {string} portName - Port name
+   */
+  dockAtPort(portId, portName) {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('dockAtPort', { portId, portName });
+  }
+
+  /**
+   * Buy commodity (for trading mode)
+   * @param {string} commodity - Commodity name
+   * @param {number} quantity - Quantity to buy
+   * @param {number} price - Price per unit
+   */
+  buyCommodity(commodity, quantity, price) {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('buyCommodity', { commodity, quantity, price });
+  }
+
+  /**
+   * Sell commodity (for trading mode)
+   * @param {string} commodity - Commodity name
+   * @param {number} quantity - Quantity to sell
+   * @param {number} price - Price per unit
+   */
+  sellCommodity(commodity, quantity, price) {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('sellCommodity', { commodity, quantity, price });
+  }
+
+  /**
+   * Get current game mode info
+   */
+  getGameModeInfo() {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('getGameModeInfo', {});
+  }
+
   // ========== PHASE 2: Event Callbacks Setup ==========
 
   /**
@@ -740,6 +831,9 @@ class NetworkManager {
 
     // Phase 4 events
     this.setupPhase4Events();
+
+    // Phase 5 events
+    this.setupPhase5Events();
   }
 
   /**
@@ -783,6 +877,52 @@ class NetworkManager {
 
     this.socket.on('botStatus', (data) => {
       if (this.onBotStatus) this.onBotStatus(data);
+    });
+  }
+
+  /**
+   * Setup all Phase 5 event listeners
+   */
+  setupPhase5Events() {
+    // Game mode events
+    this.socket.on('gameModeChanged', (data) => {
+      if (this.onGameModeChanged) this.onGameModeChanged(data);
+    });
+
+    // Team events (Team Flags)
+    this.socket.on('teamJoined', (data) => {
+      if (this.onTeamJoined) this.onTeamJoined(data);
+    });
+
+    this.socket.on('teamUpdated', (data) => {
+      if (this.onTeamUpdated) this.onTeamUpdated(data);
+    });
+
+    // Flag events (Team Flags)
+    this.socket.on('flagPickedUp', (data) => {
+      if (this.onFlagPickedUp) this.onFlagPickedUp(data);
+    });
+
+    this.socket.on('flagDropped', (data) => {
+      if (this.onFlagDropped) this.onFlagDropped(data);
+    });
+
+    // Trading events (Trading Mode)
+    this.socket.on('dockedAtPort', (data) => {
+      if (this.onDockedAtPort) this.onDockedAtPort(data);
+    });
+
+    this.socket.on('commodityBought', (data) => {
+      if (this.onCommodityBought) this.onCommodityBought(data);
+    });
+
+    this.socket.on('commoditySold', (data) => {
+      if (this.onCommoditySold) this.onCommoditySold(data);
+    });
+
+    // Game mode info query response
+    this.socket.on('gameModeInfo', (data) => {
+      if (this.onGameModeInfo) this.onGameModeInfo(data);
     });
   }
 }
