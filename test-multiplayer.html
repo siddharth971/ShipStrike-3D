@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShipStrike-3D Network Test</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Courier New', monospace;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #00ff88;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: rgba(0, 0, 0, 0.8);
+      border: 2px solid #00ff88;
+      border-radius: 8px;
+      padding: 30px;
+      box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+    }
+
+    h1 {
+      margin-bottom: 30px;
+      text-align: center;
+      font-size: 2.5em;
+      text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-bottom: 30px;
+    }
+
+    .panel {
+      background: rgba(20, 30, 60, 0.8);
+      border: 1px solid #00ff88;
+      border-radius: 5px;
+      padding: 20px;
+    }
+
+    .panel h2 {
+      margin-bottom: 15px;
+      color: #00ffff;
+      border-bottom: 1px solid #00ff88;
+      padding-bottom: 10px;
+    }
+
+    .status-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 8px;
+      animation: pulse 1s infinite;
+    }
+
+    .status-indicator.connected {
+      background: #00ff88;
+    }
+
+    .status-indicator.disconnected {
+      background: #ff0055;
+      animation: none;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .status-box {
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid #00ff88;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 4px;
+      font-size: 0.9em;
+    }
+
+    .status-box .label {
+      color: #00ffff;
+      display: inline-block;
+      width: 150px;
+    }
+
+    .status-box .value {
+      color: #00ff88;
+      font-weight: bold;
+    }
+
+    .input-group {
+      margin: 15px 0;
+      display: flex;
+      gap: 10px;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid #00ff88;
+      color: #00ff88;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+
+    input[type="text"]::placeholder {
+      color: #00885566;
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+      border-color: #00ffff;
+    }
+
+    button {
+      padding: 10px 20px;
+      background: linear-gradient(135deg, #00ff88 0%, #00ccaa 100%);
+      color: #000;
+      border: none;
+      border-radius: 4px;
+      font-weight: bold;
+      cursor: pointer;
+      font-family: monospace;
+      transition: all 0.3s;
+    }
+
+    button:hover {
+      box-shadow: 0 0 15px rgba(0, 255, 136, 0.6);
+      transform: translateY(-2px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .log {
+      background: rgba(0, 0, 0, 0.9);
+      border: 1px solid #00ff88;
+      padding: 15px;
+      height: 400px;
+      overflow-y: auto;
+      border-radius: 4px;
+      font-size: 0.85em;
+    }
+
+    .log-entry {
+      margin: 4px 0;
+      padding: 4px;
+      border-left: 3px solid #00ff88;
+      padding-left: 10px;
+    }
+
+    .log-entry.info {
+      color: #00ffff;
+      border-left-color: #00ffff;
+    }
+
+    .log-entry.success {
+      color: #00ff88;
+      border-left-color: #00ff88;
+    }
+
+    .log-entry.error {
+      color: #ff0055;
+      border-left-color: #ff0055;
+    }
+
+    .log-entry.warning {
+      color: #ffaa00;
+      border-left-color: #ffaa00;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      margin: 10px 0;
+      flex-wrap: wrap;
+    }
+
+    .button-group button {
+      flex: 1;
+      min-width: 120px;
+    }
+
+    .stats-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+    }
+
+    .stats-table td {
+      padding: 8px;
+      border-bottom: 1px solid #00885533;
+    }
+
+    .stats-table .label {
+      color: #00ffff;
+      font-weight: bold;
+      width: 40%;
+    }
+
+    .stats-table .value {
+      color: #00ff88;
+      text-align: right;
+    }
+
+    @media (max-width: 1024px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎮 ShipStrike-3D Network Test</h1>
+
+    <div class="grid">
+      <!-- LEFT PANEL: Connection & Control -->
+      <div class="panel">
+        <h2>Connection Control</h2>
+
+        <div class="status-box">
+          <span class="label">Status:</span>
+          <span class="status-indicator disconnected" id="statusIndicator"></span>
+          <span class="value" id="statusText">DISCONNECTED</span>
+        </div>
+
+        <div class="input-group">
+          <input
+            type="text"
+            id="serverUrl"
+            placeholder="Server URL (default: http://localhost:3000)"
+            value="http://localhost:3000"
+          />
+        </div>
+
+        <div class="button-group">
+          <button onclick="connectToServer()">Connect</button>
+          <button onclick="disconnect()" id="disconnectBtn" disabled>Disconnect</button>
+        </div>
+
+        <hr style="margin: 20px 0; border: none; border-top: 1px solid #00885533;" />
+
+        <h3 style="color: #00ffff; margin: 15px 0 10px;">Authentication</h3>
+
+        <div class="input-group">
+          <input type="text" id="username" placeholder="Enter username" value="TestPlayer" />
+        </div>
+
+        <div class="button-group">
+          <button id="authBtn" onclick="authenticate()" disabled>Authenticate</button>
+          <button id="joinBtn" onclick="joinMatch()" disabled>Join Match</button>
+        </div>
+
+        <hr style="margin: 20px 0; border: none; border-top: 1px solid #00885533;" />
+
+        <h3 style="color: #00ffff; margin: 15px 0 10px;">Gameplay (Disabled until connected)</h3>
+
+        <div class="button-group">
+          <button id="fireBtn" onclick="fireWeapon()" disabled>🔫 Fire</button>
+          <button onclick="sendTestMessage()" id="chatBtn" disabled>💬 Chat</button>
+          <button onclick="queryStatus()" id="statusBtn" disabled>📊 Query Status</button>
+        </div>
+      </div>
+
+      <!-- RIGHT PANEL: Server Status -->
+      <div class="panel">
+        <h2>Server Status</h2>
+
+        <table class="stats-table">
+          <tr>
+            <td class="label">Players Online:</td>
+            <td class="value" id="onlinePlayers">-</td>
+          </tr>
+          <tr>
+            <td class="label">In Match:</td>
+            <td class="value" id="inMatchPlayers">-</td>
+          </tr>
+          <tr>
+            <td class="label">Active Ships:</td>
+            <td class="value" id="activeShips">-</td>
+          </tr>
+          <tr>
+            <td class="label">Projectiles:</td>
+            <td class="value" id="projectiles">-</td>
+          </tr>
+          <tr>
+            <td class="label">Network Latency:</td>
+            <td class="value" id="latency">-</td>
+          </tr>
+          <tr>
+            <td class="label">My Ship ID:</td>
+            <td class="value" id="myShipId" style="font-size: 0.8em; word-break: break-all;">-</td>
+          </tr>
+          <tr>
+            <td class="label">My Player ID:</td>
+            <td class="value" id="myPlayerId" style="font-size: 0.8em; word-break: break-all;">-</td>
+          </tr>
+          <tr>
+            <td class="label">Server Time:</td>
+            <td class="value" id="serverTime">-</td>
+          </tr>
+        </table>
+
+        <hr style="margin: 20px 0; border: none; border-top: 1px solid #00885533;" />
+
+        <h3 style="color: #00ffff; margin: 15px 0 10px;">Auto Refresh (every 2s)</h3>
+        <button onclick="toggleAutoRefresh()" id="autoRefreshBtn" style="width: 100%;">Enable Auto Refresh</button>
+      </div>
+    </div>
+
+    <!-- BOTTOM PANEL: Network Log -->
+    <div class="panel">
+      <h2>Network Activity Log</h2>
+      <div class="log" id="log"></div>
+      <button onclick="clearLog()" style="margin-top: 10px; width: 100%;">Clear Log</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script>
+    let socket = null;
+    let playerId = null;
+    let shipId = null;
+    let latency = 0;
+    let autoRefreshEnabled = false;
+    let autoRefreshInterval = null;
+
+    // =================== LOGGING ===================
+    function log(message, type = 'info') {
+      const logEl = document.getElementById('log');
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+
+      const time = new Date().toLocaleTimeString();
+      entry.textContent = `[${time}] ${message}`;
+
+      logEl.appendChild(entry);
+      logEl.scrollTop = logEl.scrollHeight;
+
+      // Keep only last 1000 entries
+      while (logEl.children.length > 1000) {
+        logEl.children[0].remove();
+      }
+    }
+
+    function clearLog() {
+      document.getElementById('log').innerHTML = '';
+      log('Log cleared', 'info');
+    }
+
+    // =================== CONNECTION ===================
+    async function connectToServer() {
+      const serverUrl = document.getElementById('serverUrl').value;
+
+      try {
+        log(`🔌 Connecting to ${serverUrl}...`, 'info');
+
+        socket = io(serverUrl, {
+          transports: ['websocket', 'polling'],
+          reconnection: true,
+          reconnectionDelay: 1000,
+          reconnectionDelayMax: 5000,
+          reconnectionAttempts: 5
+        });
+
+        socket.on('connect', () => {
+          log('✅ Connected to server', 'success');
+          updateConnectionUI(true);
+          setupEventListeners();
+        });
+
+        socket.on('connect_error', (error) => {
+          log(`❌ Connection error: ${error.message}`, 'error');
+          updateConnectionUI(false);
+        });
+
+        socket.on('disconnect', (reason) => {
+          log(`⚠️ Disconnected: ${reason}`, 'warning');
+          updateConnectionUI(false);
+        });
+
+        socket.on('error', (data) => {
+          log(`❌ Server error: ${JSON.stringify(data)}`, 'error');
+        });
+      } catch (error) {
+        log(`❌ ${error.message}`, 'error');
+      }
+    }
+
+    function disconnect() {
+      if (socket) {
+        socket.disconnect();
+        log('👋 Disconnected from server', 'info');
+        updateConnectionUI(false);
+      }
+    }
+
+    function updateConnectionUI(connected) {
+      const indicator = document.getElementById('statusIndicator');
+      const statusText = document.getElementById('statusText');
+      const authBtn = document.getElementById('authBtn');
+      const joinBtn = document.getElementById('joinBtn');
+      const fireBtn = document.getElementById('fireBtn');
+      const chatBtn = document.getElementById('chatBtn');
+      const statusBtn = document.getElementById('statusBtn');
+      const disconnectBtn = document.getElementById('disconnectBtn');
+
+      if (connected) {
+        indicator.className = 'status-indicator connected';
+        statusText.textContent = 'CONNECTED';
+        authBtn.disabled = false;
+        joinBtn.disabled = false;
+        fireBtn.disabled = false;
+        chatBtn.disabled = false;
+        statusBtn.disabled = false;
+        disconnectBtn.disabled = false;
+      } else {
+        indicator.className = 'status-indicator disconnected';
+        statusText.textContent = 'DISCONNECTED';
+        authBtn.disabled = true;
+        joinBtn.disabled = true;
+        fireBtn.disabled = true;
+        chatBtn.disabled = true;
+        statusBtn.disabled = true;
+        disconnectBtn.disabled = true;
+        playerId = null;
+        shipId = null;
+      }
+    }
+
+    // =================== AUTHENTICATION ===================
+    function authenticate() {
+      if (!socket) {
+        log('❌ Not connected', 'error');
+        return;
+      }
+
+      const username = document.getElementById('username').value;
+      if (!username) {
+        log('⚠️ Please enter a username', 'warning');
+        return;
+      }
+
+      socket.once('authenticated', (data) => {
+        playerId = data.playerId;
+        log(`✅ Authenticated as ${username} (${playerId.substring(0, 8)}...)`, 'success');
+        document.getElementById('myPlayerId').textContent = playerId;
+      });
+
+      socket.emit('authenticate', { username });
+      log(`🔐 Authenticating as ${username}...`, 'info');
+    }
+
+    function joinMatch() {
+      if (!socket || !playerId) {
+        log('⚠️ not authenticated yet', 'warning');
+        return;
+      }
+
+      socket.once('matchJoined', (data) => {
+        shipId = data.shipId;
+        log(`📍 Joined match ${data.matchId}`, 'success');
+        log(`⛵ Spawned at (${data.position.x.toFixed(0)}, ${data.position.y.toFixed(0)})`, 'success');
+        document.getElementById('myShipId').textContent = shipId;
+      });
+
+      socket.emit('joinMatch', { matchId: 'match_default' });
+      log('📍 Joining match...', 'info');
+    }
+
+    // =================== GAMEPLAY ===================
+    function fireWeapon() {
+      if (!socket || !shipId) {
+        log('⚠️ Not in match yet', 'warning');
+        return;
+      }
+
+      socket.emit('fireWeapon', {
+        weaponType: 'cannon',
+        timestamp: Date.now()
+      });
+
+      log('🔫 Fired weapon', 'info');
+    }
+
+    function sendTestMessage() {
+      if (!socket) {
+        log('❌ Not connected', 'error');
+        return;
+      }
+
+      socket.emit('chatMessage', {
+        message: 'Test message from network tester',
+        channel: 'global'
+      });
+
+      log('💬 Sent chat message', 'info');
+    }
+
+    // =================== SERVER STATUS ===================
+    async function queryStatus() {
+      const serverUrl = document.getElementById('serverUrl').value;
+
+      try {
+        const startTime = Date.now();
+
+        const response = await fetch(`${serverUrl}/api/status`);
+        const data = await response.json();
+
+        latency = Date.now() - startTime;
+
+        document.getElementById('latency').textContent = latency + 'ms';
+        document.getElementById('onlinePlayers').textContent = data.players.online;
+        document.getElementById('inMatchPlayers').textContent = data.players.authenticated;
+        document.getElementById('activeShips').textContent = data.ships.active;
+        document.getElementById('projectiles').textContent = data.projectiles;
+        document.getElementById('serverTime').textContent = new Date(data.timestamp).toLocaleTimeString();
+
+        log(`📊 Server: ${data.players.online} online, ${data.ships.active} ships, ${latency}ms latency`, 'success');
+      } catch (error) {
+        log(`⚠️ Status query failed: ${error.message}`, 'warning');
+      }
+    }
+
+    function toggleAutoRefresh() {
+      autoRefreshEnabled = !autoRefreshEnabled;
+      const btn = document.getElementById('autoRefreshBtn');
+
+      if (autoRefreshEnabled) {
+        btn.textContent = 'Disable Auto Refresh';
+        btn.style.background = 'linear-gradient(135deg, #ff6600 0%, #ff8833 100%)';
+        autoRefreshInterval = setInterval(() => {
+          queryStatus();
+        }, 2000);
+        log('▶️ Auto refresh enabled', 'info');
+      } else {
+        btn.textContent = 'Enable Auto Refresh';
+        btn.style.background = '';
+        clearInterval(autoRefreshInterval);
+        log('⏸️ Auto refresh disabled', 'info');
+      }
+    }
+
+    // =================== SETUP NETWORK EVENTS ===================
+    function setupEventListeners() {
+      socket.on('worldUpdate', (data) => {
+        document.getElementById('serverTime').textContent = new Date(data.timestamp).toLocaleTimeString();
+      });
+
+      socket.on('shipHit', (data) => {
+        log(`💥 ${data.shooterUsername} hit a ship for ${data.damage} damage`, 'warning');
+      });
+
+      socket.on('shipSunk', (data) => {
+        log(`💀 ${data.sunkByUsername} sunk a ship!`, 'warning');
+      });
+
+      socket.on('playerJoined', (data) => {
+        log(`👤 ${data.username} joined (${data.totalPlayers} online)`, 'info');
+      });
+
+      socket.on('playerJoinedMatch', (data) => {
+        log(`📍 ${data.username} joined the match`, 'info');
+      });
+
+      socket.on('playerLeft', (data) => {
+        log(`👋 ${data.username} left (${data.totalPlayers} online)`, 'info');
+      });
+
+      socket.on('chatMessage', (data) => {
+        log(`💬 ${data.username}: ${data.message}`, 'info');
+      });
+
+      socket.on('projectileSpawned', (data) => {
+        log(`🎯 Projectile spawned`, 'info');
+      });
+    }
+
+    // =================== INITIALIZATION ===================
+    log('🎮 ShipStrike-3D Network Tester Ready', 'success');
+    log('Click "Connect" to start', 'info');
+  </script>
+</body>
+</html>

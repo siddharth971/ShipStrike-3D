@@ -14,8 +14,74 @@ import { updatePlayerControls, updatePlayerTurretAim } from './entities/player';
 import { spawnEnemyAt, updateEnemies } from './entities/enemy';
 import { maintainShipSeparation, applyTurretRecoil, applyShipSway } from './entities/ship';
 import { setupUI } from './ui';
+import { networkManager } from './core/network';
+
+// =================== NETWORK INITIALIZATION ===================
+let multiplayerEnabled = false;
+let playerInputRotation = 0;
+let playerInputAcceleration = 0;
+
+async function initializeMultiplayer() {
+  try {
+    // Get server URL from environment or default
+    const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000';
+
+    console.log('🔌 Connecting to multiplayer server...');
+    await networkManager.connect(serverUrl);
+
+    // Generate username
+    const username = 'Player_' + Math.random().toString(36).substring(2, 9);
+    await networkManager.authenticate(username);
+
+    // Join default match
+    await networkManager.joinMatch('match_default');
+
+    multiplayerEnabled = true;
+    console.log('✅ Multiplayer enabled!');
+
+    // Setup network event handlers
+    networkManager.onWorldUpdate = handleWorldUpdate;
+    networkManager.onShipHit = handleShipHit;
+    networkManager.onShipSunk = handleShipSunk;
+    networkManager.onProjectileSpawned = handleProjectileSpawned;
+
+  } catch (error) {
+    console.warn('⚠️ Multiplayer initialization failed, running in single-player mode');
+    console.warn(error);
+    multiplayerEnabled = false;
+  }
+}
+
+function handleWorldUpdate(data) {
+  // Update state with remote ships and projectiles
+  if (!state.remoteShips) state.remoteShips = new Map();
+
+  data.ships.forEach(shipData => {
+    if (shipData.id !== networkManager.shipId) {
+      state.remoteShips.set(shipData.id, shipData);
+    }
+  });
+
+  // Update projectiles count
+  state.projectileCount = data.projectiles.length;
+}
+
+function handleShipHit(data) {
+  console.log(`💥 ${data.shooterUsername} hit for ${data.damage} damage`);
+}
+
+function handleShipSunk(data) {
+  console.log(`💀 ${data.sunkByUsername} sunk a ship!`);
+}
+
+function handleProjectileSpawned(data) {
+  // Visual effect for projectile spawn can be added here
+}
 
 // =================== INITIALIZATION ===================
+// Initialize multiplayer (non-blocking)
+initializeMultiplayer();
+
 // Setup event handlers
 setupResizeHandler();
 setupInputHandlers();
@@ -39,6 +105,16 @@ function animate() {
   const shipPos = state.player ? state.player.position : null;
   water.update(elapsed, shipPos);
   ground.update(elapsed);
+
+  // Send player input to server if multiplayer enabled
+  if (multiplayerEnabled && networkManager.isReady()) {
+    if (state.player) {
+      networkManager.updateShipInput(
+        state.player.rotation.z,
+        playerInputAcceleration
+      );
+    }
+  }
 
   // Controls & game logic
   updatePlayerControls(delta, elapsed);
@@ -69,7 +145,14 @@ function animate() {
   state._lastFpsTime = state._lastFpsTime || 0;
   if (elapsed - state._lastFpsTime >= 1.0) {
     const fpsEl = document.getElementById('fps-counter');
-    if (fpsEl) fpsEl.innerText = `FPS: ${state._frames}`;
+    if (fpsEl) {
+      if (multiplayerEnabled) {
+        const netStatus = networkManager.getStatus();
+        fpsEl.innerText = `FPS: ${state._frames} | 🔌 ${netStatus.remoteShipsCount} ships`;
+      } else {
+        fpsEl.innerText = `FPS: ${state._frames}`;
+      }
+    }
     state._frames = 0;
     state._lastFpsTime = elapsed;
   }
