@@ -6,6 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import dotenv from 'dotenv';
+import DatabaseManager from './database.js';
 
 dotenv.config();
 
@@ -25,7 +26,9 @@ const io = new SocketIOServer(server, {
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, '../dist')));
+
+// Note: Frontend is now served separately from http://localhost:5173
+// This server only handles game logic and WebSocket connections
 
 // =================== GAME STATE ===================
 const gameState = {
@@ -1507,13 +1510,50 @@ app.get('/api/leaderboard', (req, res) => {
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || 'localhost';
 
-server.listen(PORT, () => {
-  console.log(`\n🚀 ==========================================`);
-  console.log(`   ShipStrike-3D Game Server`);
-  console.log(`   Running on: http://${HOST}:${PORT}`);
-  console.log(`   WebSocket: ws://${HOST}:${PORT}`);
-  console.log(`==========================================\n`);
-});
+// Initialize database and start server
+async function startServer() {
+  try {
+    // Initialize SQL Database
+    // Default to SQLite unless explicitly told to use PostgreSQL
+    const usePostgreSQL = process.env.USE_POSTGRESQL === 'true' || process.env.USE_SQLITE === 'false';
+    
+    const db = new DatabaseManager({
+      usePostgreSQL: usePostgreSQL,
+      sqlitePath: process.env.SQLITE_PATH || './shipstrike.db',
+      pgHost: process.env.DB_HOST,
+      pgPort: process.env.DB_PORT,
+      pgUser: process.env.DB_USER,
+      pgPassword: process.env.DB_PASSWORD,
+      pgDatabase: process.env.DB_NAME
+    });
+
+    await db.initialize();
+
+    // Store db in gameState for use in socket handlers
+    gameState.database = db;
+
+    server.listen(PORT, () => {
+      console.log(`\n🚀 ==========================================`);
+      console.log(`   ShipStrike-3D Game Server`);
+      console.log(`   Running on: http://${HOST}:${PORT}`);
+      console.log(`   WebSocket: ws://${HOST}:${PORT}`);
+      console.log(`==========================================\n`);
+    });
+
+    // Graceful shutdown
+    process.on('SIGINT', () => {
+      console.log('\n🛑 Shutting down server...');
+      db.close();
+      process.exit(0);
+    });
+
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+startServer();
 
 // Graceful shutdown
 process.on('SIGINT', () => {
