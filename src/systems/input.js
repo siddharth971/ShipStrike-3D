@@ -34,6 +34,14 @@ export function setupInputHandlers() {
 
     // Cycle camera mode with 'C' key (more intuitive for camera)
     if (key === 'c' || key === 'v') cycleCameraMode();
+
+    // F key for interaction (steering wheel, sails, cannons)
+    if (key === 'f') {
+      // Interaction event - will be handled by interaction system
+      if (state.onInteractKeyPressed) {
+        state.onInteractKeyPressed();
+      }
+    }
   });
 
   window.addEventListener('keyup', (e) => {
@@ -69,6 +77,7 @@ function showControlsHint() {
       <div><kbd style="background:#444;padding:3px 8px;border-radius:4px;margin-right:8px;">A/D</kbd> Turn Left / Right</div>
       <div><kbd style="background:#444;padding:3px 8px;border-radius:4px;margin-right:8px;">Mouse</kbd> Aim & Look Around</div>
       <div><kbd style="background:#444;padding:3px 8px;border-radius:4px;margin-right:8px;">Click</kbd> Fire Cannons</div>
+      <div><kbd style="background:#444;padding:3px 8px;border-radius:4px;margin-right:8px;">F</kbd> Interact (Wheel, Sails, Cannons)</div>
       <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.2);">
         <div style="color: #88ccff;"><kbd style="background:#444;padding:3px 8px;border-radius:4px;margin-right:8px;">C</kbd> Cycle Camera View</div>
         <div style="color: #888; font-size: 11px; margin-top: 4px;">Captain's View → Third Person → Free Cam</div>

@@ -1,112 +1,385 @@
-# ShipStrike-3D
+# ⚓ Ships 3D - Multiplayer Naval Combat
 
-> A high-performance 3D naval combat game built with Three.js, featuring advanced water physics, real-time shader effects, and dynamic naval warfare gameplay.
+> A fast-paced, action-packed multiplayer naval combat game playable directly in your web browser with realistic sailing physics, strategic team gameplay, and 100% free-to-play experience.
 
 <p align="center">
-  <img src="public/demo.png" width="640" alt="ShipStrike-3D gameplay demo">
+  <img src="public/demo.png" width="640" alt="Ships 3D gameplay demo">
 </p>
+
+## 🎮 What is Ships 3D?
+
+**Ships 3D** is a browser-based multiplayer naval combat game where players:
+
+- 🌊 **Steer ships** with realistic wind and sailing mechanics
+- ⚔️ **Fire cannons** at enemies to sink ships and earn gold
+- 👥 **Form crews** and clans for organized large-scale battles
+- 💰 **Upgrade ships** with better cannons, armor, speed, and sails
+- 🤖 **Use Helper Bot** for autopilot assistance
+- 🎯 **Battle in multiple modes** including Team Flags and Trading
+- 📱 **Play on mobile** with full touch controls
+- 🏆 **Climb leaderboards** across 7 ranking categories
+- 🆓 **Play completely free** with no pay-to-win mechanics
 
 ## 📋 Table of Contents
 
-- [Overview](#overview)
-- [Features](#features)
-- [Getting Started](#getting-started)
-- [Project Structure](#project-structure)
-- [Gameplay Mechanics](#gameplay-mechanics)
-- [Core Systems](#core-systems)
-- [Graphics & Shaders](#graphics--shaders)
-- [Controls](#controls)
-- [Configuration](#configuration)
-- [Development](#development)
-- [Performance Optimization](#performance-optimization)
-- [Technology Stack](#technology-stack)
-- [Contributing](#contributing)
-- [License](#license)
+- [What is Ships 3D?](#-what-is-ships-3d)
+- [Quick Features](#-quick-features)
+- [Getting Started](#-getting-started)
+- [Player Guide](#-player-guide)
+- [Game Modes](#-game-modes)
+- [Core Systems](#-core-systems)
+- [Controls](#-controls)
+- [Architecture](#-architecture)
+- [Performance](#-performance)
+- [Technology Stack](#-technology-stack)
 
-## Overview
+---
 
-ShipStrike-3D is an immersive 3D naval combat game where players command a warship in real-time battles against AI-controlled enemies. The game features stunning visuals powered by advanced water shaders, dynamic particle effects, and physics-based naval combat mechanics. Built entirely with Three.js and WebGL, it delivers high-performance 3D graphics directly in the browser.
+## ⚡ Quick Features
 
-The project showcases:
+| Feature                 | Details                                                                 |
+| ----------------------- | ----------------------------------------------------------------------- |
+| 🌊 **Sailing Physics**  | Realistic wind mechanics, sail angles, ship momentum                    |
+| ⚙️ **Upgrade System**   | 6 upgrade types: Cannons, Armor, Speed, Sails, Hull, Fire Rate          |
+| 👥 **Up to 90 Players** | Massive servers for huge naval battles                                  |
+| 🎯 **Game Modes**       | Team Flags, Trading, 60-player Teams, 90-player Battles                 |
+| 🤖 **Helper Bot**       | AI autopilot for steering, sails, and cannons                           |
+| 🏴‍☠️ **Clans & Crews**    | Form permanent organizations with crew roles                            |
+| ⚔️ **Melee Combat**     | Sword, cutlass, pistol, musket, knife fighting                          |
+| 🗺️ **Leaderboards**     | 7 categories: Kills, Damage, Wealth, Ships Sunk, Win Rate, Level, Clans |
+| 📱 **Mobile Support**   | Full touch controls on iPad and Android tablets                         |
+| 🆓 **100% Free**        | No pay-to-win, all progression through gameplay                         |
 
-- **Advanced water simulation** with fractal noise-based wave generation
-- **Real-time naval combat** with cannon fire, damage systems, and ship sinking
-- **Dynamic visual effects** including caustics, foam, and particle explosions
-- **Optimized rendering** for smooth 60+ FPS gameplay
-- **Interactive parameter tuning** via Tweakpane for live shader adjustment
+---
 
-## Features
+## 🚀 Getting Started
 
-### 🌊 Advanced Water Shader
+### Quick Start
 
-- **Fractal Noise Waves**: Procedurally generated ocean waves using Perlin noise with multiple octaves
-- **Dynamic Wave Physics**: Adjustable amplitude, frequency, speed, and persistence parameters
-- **Realistic Reflections**: Environment map reflections with Fresnel effect and distortion
-- **Caustics Effects**: Animated caustic patterns projected onto the ocean floor
-- **Foam Simulation**: Dynamic foam generation based on wave height and movement
-- **Subsurface Scattering**: Realistic light penetration through water surface
+```bash
+# Install dependencies
+npm install
 
-### ⚔️ Naval Combat System
+# Start development server
+npm run dev
 
-- **Player-Controlled Warship**: Command a fully-armed naval vessel with turret aiming
-- **AI Enemy Ships**: Multiple intelligent enemies that patrol, pursue, and engage
-- **Cannon Combat**: Fire projectiles with physics-based trajectory and impact detection
-- **Damage & Health**: Realistic ship damage model with visible destruction and health bars
-- **Ship Sinking**: Ships gradually sink when critically damaged with particle effects
-- **Ship Separation**: Collision avoidance system prevents overlapping vessels
+# Open browser to:
+# http://localhost:5174/
+```
 
-### 📹 Advanced Camera System
+Game starts **immediately** — no login required!
 
-- **Free Camera Mode**: Full 3D exploration with mouse and keyboard control
-- **Lock-On Mode**: Automatic camera targeting with mouse-X yaw control
-- **Smooth Following**: Cinematic camera follow with momentum and interpolation
-- **Multiple Views**: Easy switching between different camera modes
+### First Time Playing?
 
-### ✨ Visual Effects
+1. **Open the game** in your web browser
+2. **Watch the tutorial** on-screen controls
+3. **Start with Helper Bot** to learn mechanics
+4. **Fire your first cannon** at enemy ships
+5. **Earn gold** from each hit
+6. **Upgrade your ship** between matches
+7. **Invite friends** using ship code
+8. **Form a clan** for organized warfare
 
-- **Real-Time Particles**: Explosion effects, water splashes, and firing effects
-- **Bloom Post-Processing**: Glowing light effects for enhanced visuals
-- **Dynamic Coloring**: Wave surface colors that change based on height
-- **Turret Smoke**: Visual feedback for cannon firing with recoil animation
-- **Water Distortion**: Dynamic surface distortion around ship movement
+---
 
-### 🎮 Interactive UI
+## 📖 Player Guide
 
-- **Live Parameter Control**: Tweakpane UI for adjusting shader parameters in real-time
-- **FPS Counter**: Real-time performance monitoring
-- **Settings Persistence**: Shader settings saved to localStorage
-- **HUD System**: On-screen game information and status updates
+**Complete player guide available at [PLAYER_LOGIN_GAMEPLAY_GUIDE.md](PLAYER_LOGIN_GAMEPLAY_GUIDE.md)**
 
-## Getting Started
+Includes:
 
-### Prerequisites
+- ✅ Step-by-step gameplay tutorial
+- ✅ Wind management and sailing strategy
+- ✅ Melee combat mechanics
+- ✅ Crew and clan system
+- ✅ Leaderboard rankings
+- ✅ Advanced strategy tips
 
-- **Node.js**: v16 or higher
-- **npm**: v7 or higher
-- Modern web browser with WebGL2 support
+### Basic Controls
 
-### Installation
+| Key       | Action                           |
+| --------- | -------------------------------- |
+| **W / S** | Move forward / backward          |
+| **A / D** | Turn left / right                |
+| **Mouse** | Aim and look around              |
+| **Click** | Fire cannons                     |
+| **F**     | Interact (wheel, sails, cannons) |
+| **C**     | Cycle camera view                |
+| **H**     | Toggle HUD visibility            |
 
-1. **Clone the repository**
+---
 
-   ```bash
-   git clone <repository-url>
-   cd ShipStrike-3D
-   ```
+## 🗺️ Game Modes
 
-2. **Install dependencies**
+### Team Flags (4-60 Players)
 
-   ```bash
-   npm install
-   ```
+- Objective-based team gameplay
+- Capture enemy flags, defend home base
+- Organized fleet vs fleet combat
+- Real-time team scoring
+
+### Trading Mode (Economic Warfare)
+
+- Merchant trading between ports
+- Buy and sell commodities
+- Establish profitable trade routes
+- First player to 100k gold wins
+
+### 90-Player Battles
+
+- Massive free-for-all naval warfare
+- Chaotic large-scale combat
+- High rewards and competition
+- Battle royale-style gameplay
+
+### 60-Player Teams
+
+- Large organized team battles
+- Squad coordination
+- Strategic positioning
+- Epic fleet engagements
+
+---
+
+## ⚙️ Core Systems
+
+### 1. **Sailing & Wind System**
+
+- Realistic wind mechanics affect ship speed
+- Players must adjust sails for optimal angle
+- Points of sail determine effectiveness
+- Wind-powered naval combat
+
+### 2. **Combat & Upgrades**
+
+- **6 upgrade types**: Cannons, Armor, Speed, Sails, Hull, Fire Rate
+- **5 difficulty levels** per upgrade
+- **Progressive scaling**: Upgrades compound for exponential power growth
+- **Gold economy**: Earn from hits, sinks, objectives
+
+### 3. **Crew & Clan Management**
+
+- **Crew roles**: Helmsman, Gunner, Rigger, Sailor
+- **Clan system**: Up to 50 members, treasury, announcements
+- **Ship codes**: Unique codes to invite friends to crews
+- **Permission system**: Role-based access control
+
+### 4. **Melee Combat**
+
+- **5 weapons**: Sword, Cutlass, Pistol, Musket, Knife
+- **6 actions**: Attack, Defend, Dodge, Parry, Charge, Retreat
+- **Stamina system**: Regenerates outside combat
+- **Tactical depth**: Boarding attacks on enemy ships
+
+### 5. **Leaderboards**
+
+- 7 ranking categories
+- Real-time ranking updates
+- Seasonal competitions
+- Player percentiles and neighbors
+
+### 6. **Helper Bot**
+
+- Automatic steering toward enemies
+- Sail optimization
+- Cannon firing assistance
+- Crew management
+- Learning tool for new players
+
+---
+
+## 🎮 Architecture
+
+### Client-Side (Browser)
+
+```
+src/
+├── core/              # Core engine systems
+│   ├── renderer.js    # Three.js renderer & water shader
+│   ├── state.js       # Global game state
+│   ├── network.js     # WebSocket client
+│   └── config.js      # Configuration
+├── entities/          # Game objects
+│   ├── player.js      # Player ship
+│   ├── ship.js        # Ship physics & rendering
+│   ├── enemy.js       # Enemy AI
+│   ├── sailor.js      # Crew member
+│   ├── crew.js        # Crew management
+│   └── sails.js       # Sail system
+├── systems/           # Game systems
+│   ├── input.js       # Keyboard/mouse input
+│   ├── combat.js      # Cannon combat
+│   ├── camera.js      # Camera modes
+│   ├── particles.js   # Visual effects
+│   ├── weather.js     # Wind system
+│   ├── economy.js     # Gold/upgrades
+│   ├── upgrades.js    # Ship upgrades
+│   ├── clans.js       # Clan system
+│   ├── friends.js     # Friends list
+│   ├── leaderboards.js# Leaderboards
+│   ├── boarding.js    # Boarding mechanics
+│   ├── melee.js       # Melee combat
+│   ├── mobile/        # Touch controls
+│   ├── rendering/     # LOD system
+│   └── performance/   # Performance monitoring
+└── main.js            # Entry point
+```
+
+### Server-Side (Node.js + Socket.io)
+
+```
+server/
+├── gameServer.js      # Main server & matchmaking
+├── database.js        # Player data persistence
+├── package.json       # Dependencies
+└── systems/
+    ├── clusterManager.js    # Server clustering
+    ├── interestManager.js   # Area-of-interest updates
+    └── lagCompensation.js   # Network compensation
+```
+
+### Features Implemented
+
+✅ **Phase 1**: Multiplayer foundation, real-time sync  
+✅ **Phase 2**: Player progression, accounts, upgrades  
+✅ **Phase 3**: Economy, friends, clans, leaderboards  
+✅ **Phase 4**: Melee combat, boarding, crew system  
+✅ **Phase 5**: Mobile support, touch controls, performance  
+✅ **Phase 6**: Architecture audit, LOD system, optimization
+
+---
+
+## 🚢 Gameplay Flow
+
+```
+Game Start
+  ↓
+Load 3D World (Ocean, Ships)
+  ↓
+Spawn Player Ship + 4 Enemy AI Ships
+  ↓
+Game Loop (60 FPS)
+  ├─ Update input (WASD/Mouse)
+  ├─ Update physics (wind, sails, momentum)
+  ├─ Update enemy AI (targeting, movement)
+  ├─ Update combat (cannon fire, collisions)
+  ├─ Update particles (explosions, water)
+  ├─ Update camera (smooth following)
+  ├─ Render scene (shaders, effects)
+  └─ Sync network (if multiplayer)
+  ↓
+Earn Gold + Upgrades
+  ↓
+Repeat or End Match
+```
+
+---
+
+## 📊 Performance
+
+### Target Metrics
+
+- **FPS**: 60 with 10+ ships on screen
+- **Latency**: 20-100ms for network sync
+- **Memory**: <50MB per 10 ships
+- **Bandwidth**: ~50KB/s per player
+- **Player Concurrency**: 4-90 per match
+
+### Optimizations
+
+- **LOD System**: Level-of-detail rendering based on distance
+- **Area-of-Interest**: Only sync nearby players
+- **Mesh Batching**: Reduces draw calls
+- **Object Pooling**: Reuse projectiles and particles
+- **Frustum Culling**: Skip off-screen objects
+- **Performance Monitor**: Real-time FPS/latency tracking
+
+---
+
+## 🛠️ Technology Stack
+
+### Frontend
+
+- **Three.js** (v0.172) - 3D graphics engine
+- **WebGL** - Hardware-accelerated rendering
+- **Socket.io Client** (v4.7.2) - Real-time networking
+- **Vite** (v6.0) - Build tool & dev server
+- **Tweakpane** (v4.0.5) - Shader parameter UI
+- **GLSL** - Custom water and caustics shaders
+
+### Backend
+
+- **Node.js** - JavaScript runtime
+- **Socket.io** (v4+) - WebSocket server
+- **Express** (optional) - REST API
+- **MongoDB** (optional) - Player persistence
+
+### Infrastructure
+
+- **Vite** - Dev server with hot reload
+- **Vercel** - Deployment ready
+- **Docker** - Containerization support
+- **ESBuild** - Fast transpilation
+
+---
+
+## 🎯 Next Steps
+
+### For Players
+
+1. **Read the guide**: [PLAYER_LOGIN_GAMEPLAY_GUIDE.md](PLAYER_LOGIN_GAMEPLAY_GUIDE.md)
+2. **Start the game**: `npm run dev`
+3. **Learn controls**: Try each key in the hints
+4. **Practice wind management**: Master sailing first
+5. **Upgrade your ship**: Cannons → Armor → Speed
+6. **Join multiplayer**: Invite friends with ship codes
+7. **Form a clan**: Compete at larger scale
+
+### For Developers
+
+1. **Architecture**: See [TECHNICAL_ARCHITECTURE.md](TECHNICAL_ARCHITECTURE.md)
+2. **Implementation Details**: Check [PHASE6_ARCHITECTURE_IMPLEMENTATION.md](PHASE6_ARCHITECTURE_IMPLEMENTATION.md)
+3. **Deployment**: Use [vercel.json](vercel.json) for deployment
+4. **Custom Modes**: Extend game modes in `src/systems/gamemode/`
+5. **New Features**: Add ship types, weapons, upgrades
+
+---
+
+## 📝 Documentation
+
+- **[PLAYER_LOGIN_GAMEPLAY_GUIDE.md](PLAYER_LOGIN_GAMEPLAY_GUIDE.md)** - Complete player guide
+- **[TECHNICAL_ARCHITECTURE.md](TECHNICAL_ARCHITECTURE.md)** - System design
+- **[PHASE6_ARCHITECTURE_IMPLEMENTATION.md](PHASE6_ARCHITECTURE_IMPLEMENTATION.md)** - Latest implementation
+- **[FEATURE_MATRIX.md](FEATURE_MATRIX.md)** - Feature checklist
+- **[ROADMAP.md](ROADMAP.md)** - Future plans
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License. See LICENSE file for details.
+
+---
+
+## 🙋 Support
+
+- **Issues**: Report via GitHub Issues
+- **Discussions**: Join development discussions
+- **Contributing**: See [CONTRIBUTING.md](CONTRIBUTING.md)
+
+---
+
+**Enjoy your adventures on the high seas! ⚓⛵🎮**
+
+````
 
 3. **Start the development server**
 
-   ```bash
-   npm run dev
-   ```
+```bash
+npm run dev
+````
 
-   The game will be available at `http://localhost:5173`
+The game will be available at `http://localhost:5173`
 
 ### Building for Production
 
