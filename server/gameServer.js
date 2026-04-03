@@ -45,7 +45,12 @@ const gameState = {
   friends: new Map(), // playerId -> Set<friendId>
   clans: new Map(), // clanId -> clanData
   clanMembers: new Map(), // playerId -> clanId
-  leaderboards: new Map() // type -> [playerData]
+  leaderboards: new Map(), // type -> [playerData]
+  // Phase 4
+  boardings: new Map(), // boardingId -> boardingData
+  combats: new Map(), // combatId -> combatData
+  crewCombatants: new Map(), // playerId -> combatState
+  bots: new Map() // playerId -> botData
 };
 
 // =================== CONSTANTS ===================
@@ -785,6 +790,215 @@ io.on('connection', (socket) => {
             timestamp: Date.now()
           });
         }
+      });
+    }
+  });
+
+  // =================== PHASE 4: BOARDING & MELEE COMBAT ==========
+
+  // Initiate boarding action
+  socket.on('initiateBoarding', (data) => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player || !player.shipId) return;
+
+    const defenderShipId = data.targetShipId;
+    const defenderShip = gameState.ships.get(defenderShipId);
+    const attackerShip = gameState.ships.get(player.shipId);
+
+    if (!defenderShip || !attackerShip) return;
+
+    // Check if ships are close enough
+    const dx = attackerShip.position.x - defenderShip.position.x;
+    const dy = attackerShip.position.y - defenderShip.position.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance > 50) {
+      socket.emit('error', { message: 'Target ships are too far away to board' });
+      return;
+    }
+
+    // Create boarding action
+    const boardingId = `boarding_${Date.now()}_${player.id}`;
+    const boarding = {
+      id: boardingId,
+      attackerShipId: player.shipId,
+      defenderShipId: defenderShipId,
+      attackerId: player.id,
+      state: 'initiated',
+      startTime: Date.now(),
+      progress: 0,
+      attackerCrew: new Set([player.id]),
+      defenderCrew: new Set()
+    };
+
+    gameState.boardings.set(boardingId, boarding);
+
+    // Notify both ships
+    io.to(`match:${player.matchId}`).emit('boardingInitiated', {
+      boardingId,
+      attackerShipId: attackerShip.id,
+      defenderShipId: defenderShip.id,
+      attackerName: player.username,
+      defenderId: defenderShip.playerId
+    });
+
+    socket.emit('boardingStarted', { boardingId });
+    console.log(`⚔️ ${player.username} initiated boarding on ship ${defenderShipId.substring(0, 8)}...`);
+  });
+
+  // Join boarding action (crew member joins)
+  socket.on('joinBoardingAction', (data) => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player) return;
+
+    const boarding = gameState.boardings.get(data.boardingId);
+    if (!boarding) return;
+
+    const isAttacker = player.shipId === boarding.attackerShipId;
+    if (isAttacker) {
+      boarding.attackerCrew.add(player.id);
+    } else {
+      boarding.defenderCrew.add(player.id);
+    }
+
+    boarding.state = 'boarding';
+
+    socket.emit('joinedBoardingAction', { boardingId: data.boardingId });
+  });
+
+  // Execute melee combat action
+  socket.on('executeMeleeAction', (data) => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player) return;
+
+    const combatId = data.combatId;
+    const action = data.action; // attack, defend, dodge, parry, charge, retreat
+    const targetId = data.targetId;
+
+    // Create combat if doesn't exist
+    let combat = gameState.combats.get(combatId);
+    if (!combat) {
+      combat = {
+        id: combatId,
+        combatant1: player.id,
+        combatant2: targetId,
+        state: 'active',
+        startTime: Date.now(),
+        stats: {}
+      };
+      gameState.combats.set(combatId, combat);
+    }
+
+    // Apply action
+    const statKey = player.id === combat.combatant1 ? 'c1' : 'c2';
+    const result = {
+      action,
+      actor: player.id,
+      damage: 0
+    };
+
+    switch (action) {
+      case 'attack':
+        result.damage = Math.floor(20 + Math.random() * 15);
+        result.hit = Math.random() < 0.8;
+        if (result.hit) combat.stats[statKey] = (combat.stats[statKey] || 0) + result.damage;
+        break;
+      case 'defend':
+        result.effect = 'reduced_damage';
+        break;
+      case 'dodge':
+        result.effect = 'increase_dodge_chance';
+        break;
+      case 'charge':
+        result.damage = Math.floor(35 + Math.random() * 15);
+        result.riskful = true;
+        combat.stats[statKey] = (combat.stats[statKey] || 0) + result.damage;
+        break;
+      case 'retreat':
+        combat.state = 'paused';
+        result.effect = 'disengaged';
+        break;
+    }
+
+    // Broadcast action
+    io.to(`match:${player.matchId}`).emit('meleeActionExecuted', result);
+    socket.emit('actionCompleted', result);
+  });
+
+  // Toggle bot assistance
+  socket.on('toggleBotAssistance', () => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player) return;
+
+    let bot = gameState.bots.get(player.id);
+    if (!bot) {
+      bot = {
+        playerId: player.id,
+        enabled: true,
+        config: 'balanced',
+        stats: { cannonsFired: 0, sailAdjustments: 0 }
+      };
+      gameState.bots.set(player.id, bot);
+    } else {
+      bot.enabled = !bot.enabled;
+    }
+
+    socket.emit('botToggled', { enabled: bot.enabled });
+    console.log(`🤖 Bot for ${player.username}: ${bot.enabled ? 'enabled' : 'disabled'}`);
+  });
+
+  // Set bot configuration
+  socket.on('setBotConfig', (data) => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player) return;
+
+    let bot = gameState.bots.get(player.id);
+    if (!bot) {
+      bot = {
+        playerId: player.id,
+        enabled: false,
+        config: 'balanced',
+        stats: { cannonsFired: 0, sailAdjustments: 0 }
+      };
+      gameState.bots.set(player.id, bot);
+    }
+
+    const configType = data.configType; // passive, balanced, aggressive
+    if (['passive', 'balanced', 'aggressive'].includes(configType)) {
+      bot.config = configType;
+      socket.emit('botConfigChanged', { configType });
+      console.log(`🤖 ${player.username} bot config: ${configType}`);
+    }
+  });
+
+  // Get boarding status
+  socket.on('getBoardingStatus', (data) => {
+    const boarding = gameState.boardings.get(data.boardingId);
+    if (boarding) {
+      const elapsed = Date.now() - boarding.startTime;
+      const progress = Math.min(100, (elapsed / 10000) * 100);
+
+      socket.emit('boardingStatus', {
+        boardingId: boarding.id,
+        progress,
+        attackerCrew: boarding.attackerCrew.size,
+        defenderCrew: boarding.defenderCrew.size,
+        state: boarding.state
+      });
+    }
+  });
+
+  // Get bot status
+  socket.on('getBotStatus', () => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player) return;
+
+    const bot = gameState.bots.get(player.id);
+    if (bot) {
+      socket.emit('botStatus', {
+        enabled: bot.enabled,
+        config: bot.config,
+        stats: bot.stats
       });
     }
   });

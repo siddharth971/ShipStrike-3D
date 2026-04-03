@@ -47,6 +47,17 @@ class NetworkManager {
     this.onClanData = null;
     this.onClanChatMessage = null;
 
+    // Callbacks - Phase 4
+    this.onBoardingInitiated = null;
+    this.onBoardingStarted = null;
+    this.onJoinedBoardingAction = null;
+    this.onBoardingStatus = null;
+    this.onMeleeActionExecuted = null;
+    this.onActionCompleted = null;
+    this.onBotToggled = null;
+    this.onBotConfigChanged = null;
+    this.onBotStatus = null;
+
     // State tracking
     this.remoteShips = new Map();
     this.projectiles = new Map();
@@ -567,6 +578,71 @@ class NetworkManager {
     this.socket.emit('clanChat', { message });
   }
 
+  // ========== PHASE 4: Boarding & Melee Combat ==========
+
+  /**
+   * Initiate boarding action on target ship
+   * @param {string} targetShipId - Target ship ID
+   */
+  initiateBoarding(targetShipId) {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('initiateBoarding', { targetShipId });
+  }
+
+  /**
+   * Join an active boarding action
+   * @param {string} boardingId - Boarding action ID
+   */
+  joinBoardingAction(boardingId) {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('joinBoardingAction', { boardingId });
+  }
+
+  /**
+   * Execute a melee combat action
+   * @param {string} combatId - Combat ID
+   * @param {string} action - Action type (attack, defend, dodge, parry, charge, retreat)
+   * @param {string} targetId - Target player ID (optional)
+   */
+  executeMeleeAction(combatId, action, targetId = null) {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('executeMeleeAction', { combatId, action, targetId });
+  }
+
+  /**
+   * Toggle bot assistance on/off
+   */
+  toggleBotAssistance() {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('toggleBotAssistance', {});
+  }
+
+  /**
+   * Set bot configuration
+   * @param {string} configType - Config type (passive, balanced, aggressive)
+   */
+  setBotConfig(configType) {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('setBotConfig', { configType });
+  }
+
+  /**
+   * Request boarding status
+   * @param {string} boardingId - Boarding action ID
+   */
+  getBoardingStatus(boardingId) {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('getBoardingStatus', { boardingId });
+  }
+
+  /**
+   * Request bot status
+   */
+  getBotStatus() {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('getBotStatus', {});
+  }
+
   // ========== PHASE 2: Event Callbacks Setup ==========
 
   /**
@@ -660,6 +736,53 @@ class NetworkManager {
 
     this.socket.on('clanChatMessage', (data) => {
       if (this.onClanChatMessage) this.onClanChatMessage(data);
+    });
+
+    // Phase 4 events
+    this.setupPhase4Events();
+  }
+
+  /**
+   * Setup all Phase 4 event listeners
+   */
+  setupPhase4Events() {
+    // Boarding events
+    this.socket.on('boardingInitiated', (data) => {
+      if (this.onBoardingInitiated) this.onBoardingInitiated(data);
+    });
+
+    this.socket.on('boardingStarted', (data) => {
+      if (this.onBoardingStarted) this.onBoardingStarted(data);
+    });
+
+    this.socket.on('joinedBoardingAction', (data) => {
+      if (this.onJoinedBoardingAction) this.onJoinedBoardingAction(data);
+    });
+
+    this.socket.on('boardingStatus', (data) => {
+      if (this.onBoardingStatus) this.onBoardingStatus(data);
+    });
+
+    // Melee combat events
+    this.socket.on('meleeActionExecuted', (data) => {
+      if (this.onMeleeActionExecuted) this.onMeleeActionExecuted(data);
+    });
+
+    this.socket.on('actionCompleted', (data) => {
+      if (this.onActionCompleted) this.onActionCompleted(data);
+    });
+
+    // Bot events
+    this.socket.on('botToggled', (data) => {
+      if (this.onBotToggled) this.onBotToggled(data);
+    });
+
+    this.socket.on('botConfigChanged', (data) => {
+      if (this.onBotConfigChanged) this.onBotConfigChanged(data);
+    });
+
+    this.socket.on('botStatus', (data) => {
+      if (this.onBotStatus) this.onBotStatus(data);
     });
   }
 }
