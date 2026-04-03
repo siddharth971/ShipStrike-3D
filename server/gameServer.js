@@ -33,7 +33,11 @@ const gameState = {
   ships: new Map(),
   projectiles: new Map(),
   matches: new Map(),
-  matchCounter: 0
+  matchCounter: 0,
+  // Phase 2
+  winds: new Map(), // matchId -> windData
+  crews: new Map(), // shipId -> crewData
+  sailors: new Map() // playerId -> sailorData
 };
 
 // =================== CONSTANTS ===================
@@ -43,6 +47,78 @@ const MAP_SIZE = 4000;
 const SHIP_INITIAL_HEALTH = 100;
 const PROJECTILE_SPEED = 100; // units per second
 const PROJECTILE_LIFETIME = 30; // seconds
+
+// =================== PHASE 2 CONSTANTS ===================
+const WIND_UPDATE_INTERVAL = 2000; // Update wind every 2 seconds
+const BASE_WIND_SPEED = 10;
+const MAX_WIND_SPEED = 20;
+const MIN_WIND_SPEED = 2;
+
+// =================== PHASE 2: WIND SYSTEM ===================
+function createWindSystem(matchId) {
+  const wind = {
+    matchId: matchId,
+    direction: Math.random() * Math.PI * 2,
+    speed: BASE_WIND_SPEED + (Math.random() - 0.5) * 4,
+    lastUpdate: Date.now()
+  };
+  gameState.winds.set(matchId, wind);
+  return wind;
+}
+
+function updateWind(matchId) {
+  let wind = gameState.winds.get(matchId);
+  if (!wind) {
+    wind = createWindSystem(matchId);
+  }
+
+  const now = Date.now();
+  if (now - wind.lastUpdate > WIND_UPDATE_INTERVAL) {
+    // Gradual wind direction change
+    wind.direction += (Math.random() - 0.5) * 0.2;
+    wind.speed = Math.max(MIN_WIND_SPEED, Math.min(MAX_WIND_SPEED, wind.speed + (Math.random() - 0.5) * 2));
+    wind.lastUpdate = now;
+  }
+
+  return wind;
+}
+
+// =================== PHASE 2: CREW MANAGEMENT ===================
+function createCrew(shipId, maxCrew = 20) {
+  const crew = {
+    shipId: shipId,
+    members: new Map(), // playerId -> role
+    helmsman: null,
+    gunners: [],
+    riggers: [],
+    maxCrew: maxCrew
+  };
+  gameState.crews.set(shipId, crew);
+  return crew;
+}
+
+function addCrewMember(shipId, playerId, role = 'sailor') {
+  let crew = gameState.crews.get(shipId);
+  if (!crew) {
+    crew = createCrew(shipId);
+  }
+
+  if (crew.members.size >= crew.maxCrew) {
+    return null; // Crew full
+  }
+
+  crew.members.set(playerId, role);
+
+  if (role === 'helmsman') {
+    crew.helmsman = playerId;
+  } else if (role === 'gunner') {
+    crew.gunners.push(playerId);
+  } else if (role === 'rigger') {
+    crew.riggers.push(playerId);
+  }
+
+  return crew;
+}
 
 // =================== PLAYER MANAGEMENT ===================
 function createPlayer(socket, username) {
@@ -272,6 +348,230 @@ io.on('connection', (socket) => {
     });
   });
 
+  // =================== PHASE 2: CREW SYSTEM ===================
+  socket.on('joinCrew', (data) => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player) return;
+
+    const shipId = data.shipId;
+    const crew = addCrewMember(shipId, player.id, 'sailor');
+
+    if (crew) {
+      socket.emit('crewJoined', {
+        shipId: shipId,
+        role: 'sailor',
+        crewSize: crew.members.size,
+        maxCrewSize: crew.maxCrew
+      });
+
+      // Broadcast crew update to match
+      const ship = gameState.ships.get(shipId);
+      if (ship) {
+        io.to(`match:${ship.matchId}`).emit('crewUpdated', {
+          shipId: shipId,
+          crewSize: crew.members.size,
+          members: Array.from(crew.members.entries()).map(([id, role]) => ({
+            playerId: id,
+            role: role
+          }))
+        });
+      }
+    }
+  });
+
+  socket.on('leaveCrew', () => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player) return;
+
+    // Find ship with this player in crew
+    for (const [shipId, crew] of gameState.crews) {
+      if (crew.members.has(player.id)) {
+        crew.members.delete(player.id);
+        if (crew.helmsman === player.id) crew.helmsman = null;
+        crew.gunners = crew.gunners.filter(id => id !== player.id);
+        crew.riggers = crew.riggers.filter(id => id !== player.id);
+        break;
+      }
+    }
+  });
+
+  socket.on('assignCrewRole', (data) => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player) return;
+
+    // Find ship with this player (helmsman only)
+    for (const [shipId, crew] of gameState.crews) {
+      if (crew.helmsman === player.id) {
+        // Helmsman can assign roles
+        const member = crew.members.get(data.crewMemberId);
+        if (member) {
+          const oldRole = member;
+          crew.members.set(data.crewMemberId, data.role);
+
+          // Update role lists
+          if (oldRole === 'gunner') {
+            crew.gunners = crew.gunners.filter(id => id !== data.crewMemberId);
+          } else if (oldRole === 'rigger') {
+            crew.riggers = crew.riggers.filter(id => id !== data.crewMemberId);
+          }
+
+          if (data.role === 'gunner') {
+            crew.gunners.push(data.crewMemberId);
+          } else if (data.role === 'rigger') {
+            crew.riggers.push(data.crewMemberId);
+          }
+        }
+        break;
+      }
+    }
+  });
+
+  socket.on('getCrewData', () => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player || !player.shipId) return;
+
+    const crew = gameState.crews.get(player.shipId);
+    if (crew) {
+      socket.emit('crewUpdated', {
+        shipId: player.shipId,
+        crewSize: crew.members.size,
+        helmsman: crew.helmsman,
+        members: Array.from(crew.members.entries()).map(([id, role]) => ({
+          playerId: id,
+          role: role
+        }))
+      });
+    }
+  });
+
+  // =================== PHASE 2: SAILOR & INTERACTION ==========
+  socket.on('updateSailorState', (data) => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player) return;
+
+    const sailor = {
+      playerId: player.id,
+      position: data.position,
+      rotation: data.rotation,
+      isMoving: data.isMoving,
+      stationId: data.stationId,
+      timestamp: data.timestamp
+    };
+
+    gameState.sailors.set(player.id, sailor);
+
+    // Broadcast sailor state to match
+    if (player.matchId) {
+      io.to(`match:${player.matchId}`).emit('sailorStateUpdated', sailor);
+    }
+  });
+
+  socket.on('interactWithStation', (data) => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player) return;
+
+    // Broadcast interaction to match
+    if (player.matchId) {
+      io.to(`match:${player.matchId}`).emit('stationInteraction', {
+        playerId: player.id,
+        username: player.username,
+        stationType: data.stationType,
+        stationId: data.stationId,
+        timestamp: data.timestamp
+      });
+    }
+  });
+
+  socket.on('stopInteraction', () => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player) return;
+
+    if (player.matchId) {
+      io.to(`match:${player.matchId}`).emit('stationInteraction', {
+        playerId: player.id,
+        stationType: null,
+        stationId: null
+      });
+    }
+  });
+
+  // =================== PHASE 2: SAILS & WIND ==========
+  socket.on('setSailAngle', (data) => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player || !player.shipId) return;
+
+    const ship = gameState.ships.get(player.shipId);
+    if (ship) {
+      // Validate sail angle
+      const sailName = data.sailName;
+      const angle = Math.max(0, Math.min(180, data.angle));
+
+      if (!ship.sails) ship.sails = {};
+      ship.sails[sailName] = angle;
+
+      // Broadcast sail update
+      if (player.matchId) {
+        io.to(`match:${player.matchId}`).emit('sailsUpdated', {
+          shipId: ship.id,
+          sails: ship.sails
+        });
+      }
+    }
+  });
+
+  socket.on('deployAllSails', () => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player || !player.shipId) return;
+
+    const ship = gameState.ships.get(player.shipId);
+    if (ship) {
+      if (!ship.sails) ship.sails = {};
+      ship.sails.deployed = true;
+
+      if (player.matchId) {
+        io.to(`match:${player.matchId}`).emit('sailsUpdated', {
+          shipId: ship.id,
+          deployed: true,
+          sails: ship.sails
+        });
+      }
+    }
+  });
+
+  socket.on('retractAllSails', () => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player || !player.shipId) return;
+
+    const ship = gameState.ships.get(player.shipId);
+    if (ship) {
+      if (!ship.sails) ship.sails = {};
+      ship.sails.deployed = false;
+
+      if (player.matchId) {
+        io.to(`match:${player.matchId}`).emit('sailsUpdated', {
+          shipId: ship.id,
+          deployed: false,
+          sails: ship.sails
+        });
+      }
+    }
+  });
+
+  socket.on('getWindData', () => {
+    const player = getPlayerBySocket(socket.id);
+    if (!player || !player.matchId) return;
+
+    const wind = updateWind(player.matchId);
+    socket.emit('windData', {
+      direction: wind.direction,
+      speed: wind.speed,
+      directionalVector: {
+        x: Math.cos(wind.direction) * wind.speed,
+        y: Math.sin(wind.direction) * wind.speed
+      }
+    });
+  });
+
   // Disconnect
   socket.on('disconnect', () => {
     const player = getPlayerBySocket(socket.id);
@@ -314,6 +614,14 @@ setInterval(() => {
 
   // Update all ships
   gameState.ships.forEach(ship => {
+    // Update wind effects if in a match with wind system
+    const wind = gameState.winds.get(ship.matchId);
+    if (wind) {
+      // Wind affects maximum speed (simplified - full implementation in Phase 2)
+      const windBonus = wind.speed / BASE_WIND_SPEED; // 0.2 to 2.0
+      ship.maxSpeed = 50 * windBonus;
+    }
+
     // Simple physics
     ship.velocity.x = Math.cos(ship.rotation) * ship.acceleration * ship.maxSpeed;
     ship.velocity.y = Math.sin(ship.rotation) * ship.acceleration * ship.maxSpeed;
@@ -404,6 +712,19 @@ setInterval(() => {
     }
   }
 
+  // Update wind systems for all matches
+  gameState.matches.forEach(match => {
+    const wind = updateWind(match.id);
+    io.to(`match:${match.id}`).emit('windData', {
+      direction: wind.direction,
+      speed: wind.speed,
+      directionalVector: {
+        x: Math.cos(wind.direction) * wind.speed,
+        y: Math.sin(wind.direction) * wind.speed
+      }
+    });
+  });
+
   // Broadcast world state to all connected clients
   const ships = Array.from(gameState.ships.values()).map(ship => ({
     id: ship.id,
@@ -427,6 +748,36 @@ setInterval(() => {
     projectiles: projectiles,
     timestamp: now
   });
+
+  // Broadcast minimap data (every 2nd tick to reduce bandwidth)
+  if (Math.floor(now / DELTA_TIME) % 2 === 0) {
+    gameState.matches.forEach(match => {
+      const matchShips = Array.from(gameState.ships.values())
+        .filter(s => s.matchId === match.id)
+        .map(s => ({
+          id: s.id,
+          playerId: s.playerId,
+          position: s.position,
+          rotation: s.rotation,
+          health: s.health,
+          sinkProgress: s.sinkProgress
+        }));
+
+      const matchSailors = Array.from(gameState.sailors.values())
+        .filter(sailor => gameState.players.get(sailor.playerId)?.matchId === match.id)
+        .map(sailor => ({
+          playerId: sailor.playerId,
+          position: sailor.position,
+          stationId: sailor.stationId
+        }));
+
+      io.to(`match:${match.id}`).emit('minimapData', {
+        ships: matchShips,
+        sailors: matchSailors,
+        timestamp: now
+      });
+    });
+  }
 
 }, DELTA_TIME);
 

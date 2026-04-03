@@ -13,7 +13,7 @@ class NetworkManager {
     this.shipId = null;
     this.matchId = null;
     
-    // Callbacks
+    // Callbacks - Phase 1
     this.onAuthenticated = null;
     this.onWorldUpdate = null;
     this.onShipHit = null;
@@ -23,7 +23,16 @@ class NetworkManager {
     this.onChatMessage = null;
     this.onProjectileSpawned = null;
     this.onError = null;
-    
+
+    // Callbacks - Phase 2
+    this.onCrewJoined = null;
+    this.onCrewUpdated = null;
+    this.onSailorStateUpdated = null;
+    this.onWindData = null;
+    this.onSailsUpdated = null;
+    this.onStationInteraction = null;
+    this.onMinimapData = null;
+
     // State tracking
     this.remoteShips = new Map();
     this.projectiles = new Map();
@@ -315,6 +324,170 @@ class NetworkManager {
       projectilesCount: this.projectiles.size,
       chatMessages: this.chatMessages.length
     };
+  }
+
+  // ========== PHASE 2: Crew Management ==========
+
+  /**
+   * Join crew on a ship
+   * @param {string} shipId - Target ship ID
+   * @returns {Promise} Resolves when crew joined
+   */
+  joinCrew(shipId) {
+    return new Promise((resolve) => {
+      this.socket.once('crewJoined', (data) => {
+        console.log(`👥 Joined crew on ship ${data.shipId.substring(0, 8)}...`);
+        if (this.onCrewJoined) this.onCrewJoined(data);
+        resolve(data);
+      });
+
+      this.socket.emit('joinCrew', { shipId });
+    });
+  }
+
+  /**
+   * Leave current crew
+   */
+  leaveCrew() {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('leaveCrew', {});
+  }
+
+  /**
+   * Assign role to crew member
+   * @param {string} crewMemberId - Crew member player ID
+   * @param {string} role - Role (helmsman, gunner, rigger)
+   */
+  assignCrewRole(crewMemberId, role) {
+    if (!this.socket || !this.connected) return;
+
+    this.socket.emit('assignCrewRole', {
+      crewMemberId,
+      role
+    });
+  }
+
+  /**
+   * Request crew data for tracking
+   */
+  requestCrewData() {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('getCrewData', {});
+  }
+
+  // ========== PHASE 2: Sailor & Interaction ==========
+
+  /**
+   * Update sailor position and state
+   * @param {object} sailorState - { position, rotation, isMoving, stationId }
+   */
+  updateSailorState(sailorState) {
+    if (!this.socket || !this.connected) return;
+
+    this.socket.emit('updateSailorState', {
+      ...sailorState,
+      timestamp: Date.now()
+    });
+  }
+
+  /**
+   * Interact with a ship station
+   * @param {string} stationType - Type of station (helm, cannon, sail, etc)
+   * @param {string} stationId - Station ID
+   */
+  interactWithStation(stationType, stationId) {
+    if (!this.socket || !this.connected) return;
+
+    this.socket.emit('interactWithStation', {
+      stationType,
+      stationId,
+      timestamp: Date.now()
+    });
+  }
+
+  /**
+   * Stop interacting with current station
+   */
+  stopInteraction() {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('stopInteraction', {});
+  }
+
+  // ========== PHASE 2: Sails & Wind ==========
+
+  /**
+   * Adjust sail angle
+   * @param {string} sailName - Sail name (main, jib, mizzen)
+   * @param {number} angle - Sail angle (0-180 degrees)
+   */
+  setSailAngle(sailName, angle) {
+    if (!this.socket || !this.connected) return;
+
+    this.socket.emit('setSailAngle', {
+      sailName,
+      angle,
+      timestamp: Date.now()
+    });
+  }
+
+  /**
+   * Deploy all sails
+   */
+  deployAllSails() {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('deployAllSails', {});
+  }
+
+  /**
+   * Retract all sails
+   */
+  retractAllSails() {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('retractAllSails', {});
+  }
+
+  /**
+   * Request wind data update
+   */
+  requestWindData() {
+    if (!this.socket || !this.connected) return;
+    this.socket.emit('getWindData', {});
+  }
+
+  // ========== PHASE 2: Event Callbacks Setup ==========
+
+  /**
+   * Setup all Phase 2 event listeners
+   */
+  setupPhase2Events() {
+    // Crew system events
+    this.socket.on('crewUpdated', (data) => {
+      if (this.onCrewUpdated) this.onCrewUpdated(data);
+    });
+
+    this.socket.on('sailorStateUpdated', (data) => {
+      if (this.onSailorStateUpdated) this.onSailorStateUpdated(data);
+    });
+
+    // Wind system events
+    this.socket.on('windData', (data) => {
+      if (this.onWindData) this.onWindData(data);
+    });
+
+    // Sail system events
+    this.socket.on('sailsUpdated', (data) => {
+      if (this.onSailsUpdated) this.onSailsUpdated(data);
+    });
+
+    // Station interaction events
+    this.socket.on('stationInteraction', (data) => {
+      if (this.onStationInteraction) this.onStationInteraction(data);
+    });
+
+    // Minimap data
+    this.socket.on('minimapData', (data) => {
+      if (this.onMinimapData) this.onMinimapData(data);
+    });
   }
 }
 
