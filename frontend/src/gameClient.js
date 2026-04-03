@@ -6,6 +6,7 @@ import GameState from './systems/gameStateManager.js';
 import AuthSystem from './systems/auth.js';
 import UIController from './systems/uiController.js';
 import InputController from './systems/inputController.js';
+import { startWorld, stopWorld, updateWorld } from './worldRuntime.js';
 
 class GameClient {
   constructor() {
@@ -189,12 +190,13 @@ class GameClient {
       // Spawn initial ship
       console.log('⛵ Spawning ship...');
       const ship = await this.network.spawnShip('sloop');
-      this.gameState.ship = ship;
+      this.gameState.setShipState(ship);
       console.log(`✅ Ship spawned: ${ship.type}`);
       
       // Show game screen
       console.log('📱 Showing game screen...');
       this.showGameScreen();
+      startWorld(this.gameState);
       
       console.log(`✅ ${username} logged in successfully`);
       this.startGameLoop();
@@ -219,6 +221,7 @@ class GameClient {
     this.network.disconnect();
     
     // Reset state
+    stopWorld();
     this.gameState.reset();
     this.auth.logout();
     
@@ -266,8 +269,7 @@ class GameClient {
    * Update game state
    */
   update() {
-    // This is where the Three.js renderer would update
-    // For now, just update UI
+    updateWorld(this.gameState);
     this.ui.updateHUD();
     this.ui.updateRadar();
   }

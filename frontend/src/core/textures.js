@@ -17,7 +17,7 @@ export function makeSplashTexture(size = 256, inner = '#e41818ff', outer = '#ff6
   const t = new THREE.CanvasTexture(c);
   t.minFilter = THREE.LinearMipMapLinearFilter;
   t.magFilter = THREE.LinearFilter;
-  t.encoding = THREE.sRGBEncoding;
+  t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
 

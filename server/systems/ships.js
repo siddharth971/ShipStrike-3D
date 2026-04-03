@@ -257,6 +257,10 @@ class Ship {
       playerId: this.playerId,
       playerName: this.playerName,
       type: this.type.name,
+      hp: this.currentHP,
+      maxHP: this.maxHP,
+      throttle: this.throttle,
+      ammoType: this.ammoType,
       stats: {
         hp: this.currentHP,
         maxHP: this.maxHP,

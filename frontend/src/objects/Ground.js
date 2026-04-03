@@ -32,7 +32,7 @@ export class Ground extends THREE.Mesh {
       tex.repeat.set(textureRepeat, textureRepeat);
 
       // better sampling and color space
-      tex.encoding = THREE.sRGBEncoding;
+      tex.colorSpace = THREE.SRGBColorSpace;
       tex.minFilter = THREE.LinearMipMapLinearFilter;
       tex.magFilter = THREE.LinearFilter;
 

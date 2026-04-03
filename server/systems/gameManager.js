@@ -24,26 +24,28 @@ class GameManager {
    * Initialize a new player
    */
   async initializePlayer(playerId, playerName) {
+    const requestedName = typeof playerName === 'string' ? playerName.trim() : '';
+    const fallbackName = `Captain_${String(playerId).slice(-4)}`;
+
     // Check if player exists in database
-    let playerData = await this.databaseManager.loadAccount(playerId);
-    
-    if (!playerData) {
-      // Create new player
-      playerData = {
-        id: playerId,
-        name: playerName,
-        createdAt: Date.now(),
-        level: 1,
-        gold: 500,
-        xp: 0
-      };
-      await this.databaseManager.saveAccount(playerData);
-    }
+    const savedAccount = await this.databaseManager.loadAccount(playerId);
+    const playerData = {
+      playerId,
+      username: requestedName || savedAccount?.username || savedAccount?.name || fallbackName,
+      email: savedAccount?.email || null,
+      createdAt: savedAccount?.createdAt || Date.now(),
+      lastLogin: Date.now(),
+      level: savedAccount?.level ?? 1,
+      experience: savedAccount?.experience ?? savedAccount?.xp ?? 0
+    };
+
+    // Persist a normalized account shape for new and returning players.
+    await this.databaseManager.saveAccount(playerId, playerData);
 
     // Store in memory
     this.players.set(playerId, {
       id: playerId,
-      name: playerName || playerData.name,
+      name: playerData.username,
       ship: null,
       position: { x: 0, y: 0, z: 0 },
       rotation: { x: 0, y: 0, z: 0 },
@@ -54,14 +56,14 @@ class GameManager {
     // Initialize progression
     const progress = this.progression.getPlayerProgress(playerId);
     progress.level = playerData.level || 1;
-    progress.gold = playerData.gold || 500;
-    progress.totalXp = playerData.xp || 0;
+    progress.gold = savedAccount?.gold || 500;
+    progress.totalXp = playerData.experience || 0;
 
     return {
       playerId,
-      playerName: playerData.name,
+      playerName: playerData.username,
       level: playerData.level || 1,
-      gold: playerData.gold || 500
+      gold: savedAccount?.gold || 500
     };
   }
 

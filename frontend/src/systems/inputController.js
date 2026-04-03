@@ -44,7 +44,10 @@ class InputController {
    * Handle key down
    */
   handleKeyDown(e) {
-    this.keys[e.key.toLowerCase()] = true;
+    const key = this.getNormalizedKey(e);
+    if (!key || this.isEditableTarget(e.target)) return;
+
+    this.keys[key] = true;
 
     // Menu toggle (ESC)
     if (e.key === 'Escape') {
@@ -58,10 +61,10 @@ class InputController {
     }
 
     // Ammo switch (Q/E)
-    if (e.key.toLowerCase() === 'q') {
+    if (key === 'q') {
       this.gameState.switchAmmunition('prev');
     }
-    if (e.key.toLowerCase() === 'e') {
+    if (key === 'e') {
       this.gameState.switchAmmunition('next');
     }
 
@@ -81,7 +84,31 @@ class InputController {
    * Handle key up
    */
   handleKeyUp(e) {
-    this.keys[e.key.toLowerCase()] = false;
+    const key = this.getNormalizedKey(e);
+    if (!key) return;
+
+    this.keys[key] = false;
+  }
+
+  /**
+   * Normalize keyboard keys so unexpected document events do not crash input handling
+   */
+  getNormalizedKey(e) {
+    return typeof e?.key === 'string' && e.key.length > 0
+      ? e.key.toLowerCase()
+      : null;
+  }
+
+  /**
+   * Ignore gameplay hotkeys while the user is typing into a form control
+   */
+  isEditableTarget(target) {
+    return target instanceof HTMLElement && (
+      target.isContentEditable ||
+      target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.tagName === 'SELECT'
+    );
   }
 
   /**

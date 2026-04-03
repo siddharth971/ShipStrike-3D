@@ -14,18 +14,7 @@ class GameState {
     this.maxXP = 100;
     
     // Ship data
-    this.ship = {
-      id: null,
-      type: 'sloop',
-      position: { x: 0, y: 0, z: 0 },
-      rotation: { x: 0, y: 0, z: 0 },
-      velocity: { x: 0, y: 0, z: 0 },
-      hp: 150,
-      maxHP: 150,
-      throttle: 0,
-      ammoType: 'normal',
-      crew: []
-    };
+    this.ship = this.createDefaultShipState();
 
     // Combat stats
     this.combatStats = {
@@ -152,7 +141,7 @@ class GameState {
     }
 
     if (state.ship) {
-      Object.assign(this.ship, state.ship);
+      this.setShipState(state.ship);
     }
 
     this.combatStats = state.combatStats || this.combatStats;
@@ -227,6 +216,55 @@ class GameState {
   }
 
   /**
+   * Build the default local ship shape used by UI and input systems
+   */
+  createDefaultShipState() {
+    return {
+      id: null,
+      type: 'sloop',
+      position: { x: 0, y: 0, z: 0 },
+      rotation: { x: 0, y: 0, z: 0 },
+      velocity: { x: 0, y: 0, z: 0 },
+      hp: 150,
+      maxHP: 150,
+      throttle: 0,
+      ammoType: 'normal',
+      crew: []
+    };
+  }
+
+  /**
+   * Normalize ship payloads from the server so the client always has a stable shape
+   */
+  normalizeShipData(shipData = {}) {
+    const defaultShip = this.createDefaultShipState();
+    const stats = shipData.stats || {};
+
+    return {
+      ...defaultShip,
+      ...shipData,
+      position: { ...defaultShip.position, ...(shipData.position || {}) },
+      rotation: { ...defaultShip.rotation, ...(shipData.rotation || {}) },
+      velocity: { ...defaultShip.velocity, ...(shipData.velocity || {}) },
+      hp: shipData.hp ?? stats.hp ?? defaultShip.hp,
+      maxHP: shipData.maxHP ?? stats.maxHP ?? defaultShip.maxHP,
+      throttle: shipData.throttle ?? defaultShip.throttle,
+      ammoType: shipData.ammoType ?? defaultShip.ammoType,
+      crew: Array.isArray(shipData.crew) ? shipData.crew : defaultShip.crew
+    };
+  }
+
+  /**
+   * Merge an incoming ship payload into the existing local ship state
+   */
+  setShipState(shipData) {
+    this.ship = this.normalizeShipData({
+      ...this.ship,
+      ...shipData
+    });
+  }
+
+  /**
    * Fire cannon
    */
   fireCannonAt(targetPosition) {
@@ -269,7 +307,9 @@ class GameState {
    * Get player HP percentage
    */
   getHPPercentage() {
-    return Math.min(1.0, this.ship.hp / this.ship.maxHP);
+    const maxHP = Number(this.ship?.maxHP) || 1;
+    const hp = Number(this.ship?.hp) || 0;
+    return Math.min(1.0, hp / maxHP);
   }
 
   /**
@@ -309,18 +349,7 @@ class GameState {
     this.level = 1;
     this.gold = 500;
     this.xp = 0;
-    this.ship = {
-      id: null,
-      type: 'sloop',
-      position: { x: 0, y: 0, z: 0 },
-      rotation: { x: 0, y: 0, z: 0 },
-      velocity: { x: 0, y: 0, z: 0 },
-      hp: 150,
-      maxHP: 150,
-      throttle: 0,
-      ammoType: 'normal',
-      crew: []
-    };
+    this.ship = this.createDefaultShipState();
     this.otherShips.clear();
     this.projectiles.clear();
     this.messages = [];

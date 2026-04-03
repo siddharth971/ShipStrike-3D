@@ -26,7 +26,7 @@ export const clock = new THREE.Clock();
 export const renderer = new THREE.WebGLRenderer({ antialias: false }); // Disabled antialiasing to save fillrate since post-process blooms it anyway
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1)); // Cap pixel ratio to 1 for massive fillrate boost
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.7; // Reduced for darker sky
 document.body.appendChild(renderer.domElement);

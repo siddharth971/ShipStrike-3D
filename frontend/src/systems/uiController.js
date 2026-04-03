@@ -297,6 +297,12 @@ class UIController {
    * Update HUD with current game state
    */
   updateHUD() {
+    const ship = this.gameState.ship || {};
+    const hp = Number(ship.hp) || 0;
+    const maxHP = Number(ship.maxHP) || 0;
+    const ammoType = String(ship.ammoType || 'normal').toUpperCase();
+    const throttlePercent = Number(ship.throttle) || 0;
+
     const levelEl = document.getElementById('hud-level');
     if (levelEl) levelEl.textContent = this.gameState.level;
     
@@ -304,7 +310,7 @@ class UIController {
     if (goldEl) goldEl.textContent = this.gameState.gold;
     
     const hpEl = document.getElementById('hud-hp');
-    if (hpEl) hpEl.textContent = `${Math.ceil(this.gameState.ship.hp)}/${this.gameState.ship.maxHP}`;
+    if (hpEl) hpEl.textContent = `${Math.ceil(hp)}/${maxHP}`;
 
     // Update XP bar
     const xpPercent = this.gameState.getXPPercentage() * 100;
@@ -321,10 +327,9 @@ class UIController {
 
     // Update ammo type
     const ammoEl = document.getElementById('ammo-type');
-    if (ammoEl) ammoEl.textContent = this.gameState.ship.ammoType.toUpperCase();
+    if (ammoEl) ammoEl.textContent = ammoType;
 
     // Update throttle
-    const throttlePercent = this.gameState.ship.throttle;
     const throttleIndicator = document.getElementById('throttle-indicator');
     if (throttleIndicator) throttleIndicator.style.width = throttlePercent + '%';
     
