@@ -10,12 +10,21 @@ import { maintainShipSeparation } from './entities/ship.js';
 import { CameraMode, setCameraMode, updateCameraFollow } from './systems/camera.js';
 import { updateCannonballs, updateSinking } from './systems/combat.js';
 import { clearWorld, updateHUD as updateLegacyHUD } from './systems/hud.js';
+import { GameModeManager } from './systems/gamemode/modemanager.js';
 import { updateParticles } from './systems/particles.js';
 import { performanceMonitor } from './systems/performance/monitor.js';
 import { setupInputHandlers } from './systems/input.js';
+import { setupUI } from './ui.js';
 
 let initialized = false;
 let worldActive = false;
+let waterDebugPane = null;
+const modeManager = new GameModeManager();
+let sessionContext = {
+  mode: 'teamflags',
+  shipCode: '',
+  playerName: 'Captain'
+};
 
 renderer.domElement.style.display = 'none';
 renderer.domElement.style.position = 'fixed';
@@ -34,6 +43,15 @@ function updateOverlayVisibility(isVisible) {
   toggleElement('crosshair', isVisible, 'flex');
   toggleElement('fps-counter', isVisible, 'block');
   toggleElement('game-over-screen', false, 'flex');
+  toggleElement('mode-briefing', isVisible, 'block');
+}
+
+function ensureWaterDebugPane() {
+  if (waterDebugPane) return waterDebugPane;
+
+  waterDebugPane = setupUI({ water, ground });
+  waterDebugPane.hidden = true;
+  return waterDebugPane;
 }
 
 updateOverlayVisibility(false);
@@ -57,10 +75,87 @@ function ensureInitialized() {
   initialized = true;
 }
 
-function spawnInitialEnemies() {
-  for (let i = 0; i < 4; i++) {
-    const angle = (i / 4) * Math.PI * 2;
-    const distance = 180 + i * 80;
+function getModeConfig(mode) {
+  if (mode === 'trading') {
+    return {
+      label: 'Trader Mode',
+      description: 'Longer lanes, lighter enemy pressure, and route-minded pacing.',
+      enemyCount: 2
+    };
+  }
+
+  return {
+    label: 'Team Flags',
+    description: 'Fleet skirmish pressure with more enemy contacts and faster combat.',
+    enemyCount: 6
+  };
+}
+
+function getModeOverview() {
+  const activeMode = modeManager.getCurrentMode();
+  if (activeMode?.getGameOverview) return activeMode.getGameOverview();
+  if (activeMode?.getMatchOverview) return activeMode.getMatchOverview();
+  return null;
+}
+
+function ensureModeBriefing() {
+  let briefing = document.getElementById('mode-briefing');
+  if (briefing) return briefing;
+
+  briefing = document.createElement('div');
+  briefing.id = 'mode-briefing';
+  briefing.className = 'mode-briefing';
+  document.body.appendChild(briefing);
+  return briefing;
+}
+
+function updateModeBriefing() {
+  const briefing = ensureModeBriefing();
+  const modeConfig = getModeConfig(sessionContext.mode);
+  const overview = getModeOverview();
+  const objective = sessionContext.mode === 'trading'
+    ? `Ports in session: ${overview?.ports?.length ?? 0}. Profit goal: ${overview?.profitGoal ?? 0}.`
+    : `Score to win: ${overview?.scoreToWin ?? 3}. Red ${overview?.redTeam?.score ?? 0} - Blue ${overview?.blueTeam?.score ?? 0}.`;
+  const crewLine = sessionContext.shipCode
+    ? `Crew code reserved: ${sessionContext.shipCode}. Shared-ship join is still not server-backed.`
+    : 'Solo launch active. Shared-ship join is still not server-backed.';
+
+  briefing.innerHTML = `
+    <div class="mode-briefing-kicker">${modeConfig.label}</div>
+    <div class="mode-briefing-title">${sessionContext.playerName}</div>
+    <div class="mode-briefing-copy">${modeConfig.description}</div>
+    <div class="mode-briefing-meta">${objective}</div>
+    <div class="mode-briefing-meta">${crewLine}</div>
+  `;
+}
+
+function configureMode(gameState) {
+  const playerId = gameState?.playerId || 'local-player';
+  modeManager.setMode(sessionContext.mode, 'local-session');
+  const activeMode = modeManager.getCurrentMode();
+
+  if (!activeMode) {
+    updateModeBriefing();
+    return;
+  }
+
+  if (sessionContext.mode === 'trading') {
+    activeMode.startMatch?.();
+    activeMode.dockAtPort?.(playerId, 'port_center');
+  } else {
+    activeMode.assignPlayerToTeam?.(playerId);
+    activeMode.startMatch?.();
+  }
+
+  updateModeBriefing();
+}
+
+function spawnInitialEnemies(mode) {
+  const { enemyCount } = getModeConfig(mode);
+
+  for (let i = 0; i < enemyCount; i++) {
+    const angle = (i / enemyCount) * Math.PI * 2;
+    const distance = mode === 'trading' ? 320 + i * 120 : 180 + i * 70;
     spawnEnemyAt(Math.cos(angle) * distance, Math.sin(angle) * distance);
   }
 }
@@ -105,17 +200,26 @@ function syncWorldToGameState(gameState) {
   });
 }
 
-export function startWorld(gameState) {
+export function startWorld(gameState, options = {}) {
+  sessionContext = {
+    mode: options.mode === 'trading' ? 'trading' : 'teamflags',
+    shipCode: String(options.shipCode || ''),
+    playerName: String(options.playerName || gameState?.playerName || 'Captain')
+  };
+
   ensureInitialized();
 
   clearWorld();
+  configureMode(gameState);
   setCameraMode(CameraMode.THIRD_PERSON);
   spawnPlayer();
-  spawnInitialEnemies();
+  spawnInitialEnemies(sessionContext.mode);
   clock.start();
   worldActive = true;
   renderer.domElement.style.display = 'block';
+  ensureWaterDebugPane().hidden = false;
   updateOverlayVisibility(true);
+  updateModeBriefing();
   syncWorldToGameState(gameState);
 }
 
@@ -123,8 +227,10 @@ export function stopWorld() {
   if (!initialized) return;
 
   clearWorld();
+  modeManager.clear();
   worldActive = false;
   renderer.domElement.style.display = 'none';
+  if (waterDebugPane) waterDebugPane.hidden = true;
   updateOverlayVisibility(false);
 }
 
@@ -154,5 +260,6 @@ export function updateWorld(gameState) {
   performanceMonitor.update();
   updateFPSCounter();
   updateLegacyHUD();
+  updateModeBriefing();
   syncWorldToGameState(gameState);
 }

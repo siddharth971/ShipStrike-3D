@@ -5,7 +5,7 @@ class UIController {
   constructor(gameState, networkClient) {
     this.gameState = gameState;
     this.network = networkClient;
-    
+
     this.screens = {
       login: null,
       hud: null,
@@ -14,12 +14,11 @@ class UIController {
       leaderboard: null,
       settings: null
     };
-    
+
     this.currentScreen = 'login';
     this.isMenuOpen = false;
     this.selectedUpgrade = null;
 
-    // Listen for game state changes
     this.gameState.on('playerUpdated', () => this.updateHUD());
     this.gameState.on('shipsUpdated', () => this.updateRadar());
     this.gameState.on('leaderboardUpdated', () => this.updateLeaderboard());
@@ -31,29 +30,138 @@ class UIController {
   createLoginScreen(containerId) {
     const container = document.getElementById(containerId);
     if (!container) {
-      console.error(`❌ Could not find login container: ${containerId}`);
+      console.error(`Could not find login container: ${containerId}`);
       return;
     }
 
+    this.screens.login = container;
     container.style.display = 'block';
     container.innerHTML = `
       <div id="login-form" class="login-container">
-        <h1>⚔️ ShipStrike-3D</h1>
-        <div class="login-content">
-          <input 
-            type="text" 
-            id="username-input" 
-            placeholder=""
-            class="login-input"
-          />
-          <button id="login-button" class="login-button">Set Sail</button>
-          <p class="login-info">New players automatically create an account</p>
+        <div class="login-backdrop"></div>
+        <div class="login-shell">
+          <section class="login-hero">
+            <p class="login-kicker">Browser naval combat prototype</p>
+            <h1>ShipStrike-3D</h1>
+            <p class="login-subtitle">
+              Enter the current local sea, choose your battle style, and launch
+              straight into a live 3D session.
+            </p>
+            <div class="login-mode-summary">
+              <span id="selected-mode-badge" class="login-badge">Team Flags</span>
+              <p id="selected-mode-copy" class="login-mode-copy">
+                Fleet skirmish focus with direct enemy pressure and faster action.
+              </p>
+            </div>
+          </section>
+
+          <section class="login-content login-panel">
+            <label class="login-label" for="username-input">Captain Name</label>
+            <input
+              type="text"
+              id="username-input"
+              placeholder="Enter your captain name"
+              class="login-input"
+              maxlength="24"
+              autocomplete="username"
+            />
+
+            <div class="login-section-header">
+              <span class="login-label">Choose Mode</span>
+              <span class="login-helper">Local session flavor is mode-aware</span>
+            </div>
+            <div class="mode-grid">
+              <button type="button" class="mode-card active" data-mode="teamflags">
+                <span class="mode-card-title">Team Flags</span>
+                <span class="mode-card-copy">Direct naval combat and heavier enemy pressure.</span>
+              </button>
+              <button type="button" class="mode-card" data-mode="trading">
+                <span class="mode-card-title">Trader Mode</span>
+                <span class="mode-card-copy">Lower-pressure sea lanes with port-style objectives.</span>
+              </button>
+            </div>
+
+            <div class="lobby-grid">
+              <div class="lobby-card">
+                <div class="login-section-header">
+                  <span class="login-label">Server Snapshot</span>
+                  <button type="button" id="refresh-server-button" class="text-button">Refresh</button>
+                </div>
+                <div class="server-status-row">
+                  <span id="lobby-server-status" class="server-status-chip" data-state="loading">
+                    Checking server...
+                  </span>
+                </div>
+                <div class="server-stats">
+                  <div class="server-stat">
+                    <span class="server-stat-label">Players</span>
+                    <span id="lobby-player-count" class="server-stat-value">--</span>
+                  </div>
+                  <div class="server-stat">
+                    <span class="server-stat-label">Ships</span>
+                    <span id="lobby-ship-count" class="server-stat-value">--</span>
+                  </div>
+                  <div class="server-stat">
+                    <span class="server-stat-label">Uptime</span>
+                    <span id="lobby-uptime" class="server-stat-value">--</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="lobby-card">
+                <label class="login-label" for="ship-code-input">Ship Code</label>
+                <input
+                  type="text"
+                  id="ship-code-input"
+                  placeholder="Optional crew code"
+                  class="login-input login-input-compact"
+                  maxlength="24"
+                  autocomplete="off"
+                />
+                <p class="login-info login-info-inline">
+                  Crew code is captured in the lobby now. Shared-ship joining is
+                  still a follow-up server task.
+                </p>
+              </div>
+            </div>
+
+            <button id="login-button" class="login-button">Set Sail In Team Flags</button>
+            <p class="login-info">New players automatically create a local account profile.</p>
+          </section>
         </div>
       </div>
     `;
 
-    const loginBtn = document.getElementById('login-button');
-    const usernameInput = document.getElementById('username-input');
+    const loginBtn = container.querySelector('#login-button');
+    const usernameInput = container.querySelector('#username-input');
+    const shipCodeInput = container.querySelector('#ship-code-input');
+    const refreshServerBtn = container.querySelector('#refresh-server-button');
+    const selectedModeBadge = container.querySelector('#selected-mode-badge');
+    const selectedModeCopy = container.querySelector('#selected-mode-copy');
+    const modeButtons = Array.from(container.querySelectorAll('.mode-card'));
+    const modeDescriptions = {
+      teamflags: {
+        label: 'Team Flags',
+        copy: 'Fleet skirmish focus with direct enemy pressure and faster action.'
+      },
+      trading: {
+        label: 'Trader Mode',
+        copy: 'Lower-pressure sea lanes with port-style objectives and longer routes.'
+      }
+    };
+    let selectedMode = 'teamflags';
+
+    const updateModeSelection = (mode) => {
+      selectedMode = modeDescriptions[mode] ? mode : 'teamflags';
+      modeButtons.forEach((button) => {
+        button.classList.toggle('active', button.dataset.mode === selectedMode);
+      });
+
+      const selected = modeDescriptions[selectedMode];
+      if (selectedModeBadge) selectedModeBadge.textContent = selected.label;
+      if (selectedModeCopy) selectedModeCopy.textContent = selected.copy;
+      if (loginBtn) loginBtn.textContent = `Set Sail In ${selected.label}`;
+    };
 
     const handleLogin = () => {
       const username = usernameInput.value.trim();
@@ -61,15 +169,85 @@ class UIController {
         alert('Please enter a username');
         return;
       }
-      this.emit('login', { username });
+
+      this.emit('login', {
+        username,
+        mode: selectedMode,
+        shipCode: shipCodeInput?.value.trim() || ''
+      });
     };
 
-    loginBtn.addEventListener('click', handleLogin);
-    usernameInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') handleLogin();
+    modeButtons.forEach((button) => {
+      button.addEventListener('click', () => updateModeSelection(button.dataset.mode));
     });
 
+    loginBtn?.addEventListener('click', handleLogin);
+    usernameInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleLogin();
+    });
+    shipCodeInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') handleLogin();
+    });
+    refreshServerBtn?.addEventListener('click', () => this.refreshLoginServerStatus());
+
+    updateModeSelection(selectedMode);
+    this.refreshLoginServerStatus();
+
     return container;
+  }
+
+  /**
+   * Refresh the lobby server status card
+   */
+  async refreshLoginServerStatus() {
+    const statusEl = document.getElementById('lobby-server-status');
+    const playersEl = document.getElementById('lobby-player-count');
+    const shipsEl = document.getElementById('lobby-ship-count');
+    const uptimeEl = document.getElementById('lobby-uptime');
+
+    if (!statusEl || !playersEl || !shipsEl || !uptimeEl) {
+      return;
+    }
+
+    statusEl.textContent = 'Checking server...';
+    statusEl.dataset.state = 'loading';
+
+    try {
+      const status = await this.network.getServerStatus();
+      statusEl.textContent = status.status === 'online' ? 'Server online' : 'Server unavailable';
+      statusEl.dataset.state = status.status === 'online' ? 'online' : 'offline';
+      playersEl.textContent = String(status.players ?? 0);
+      shipsEl.textContent = String(status.ships ?? 0);
+      uptimeEl.textContent = this.formatDuration(status.uptime);
+    } catch (error) {
+      statusEl.textContent = 'Server offline';
+      statusEl.dataset.state = 'offline';
+      playersEl.textContent = '--';
+      shipsEl.textContent = '--';
+      uptimeEl.textContent = '--';
+      console.warn('Failed to refresh lobby status:', error);
+    }
+  }
+
+  /**
+   * Format milliseconds for compact lobby display
+   */
+  formatDuration(durationMs = 0) {
+    const totalSeconds = Math.max(0, Math.floor(durationMs / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    if (minutes >= 60) {
+      const hours = Math.floor(minutes / 60);
+      const remainingMinutes = minutes % 60;
+      return `${hours}h ${remainingMinutes}m`;
+    }
+
+    if (minutes > 0) {
+      return `${minutes}m ${seconds}s`;
+    }
+
+    return `${seconds}s`;
   }
 
   /**
@@ -78,14 +256,13 @@ class UIController {
   createHUD(containerId) {
     const container = document.getElementById(containerId);
     if (!container) {
-      console.error(`❌ Could not find HUD container: ${containerId}`);
+      console.error(`Could not find HUD container: ${containerId}`);
       return;
     }
 
     container.style.display = 'none';
     container.innerHTML = `
       <div id="hud" class="hud">
-        <!-- Top-left: Player stats -->
         <div class="hud-section top-left">
           <div class="stat-row">
             <span class="stat-label">Level:</span>
@@ -101,7 +278,6 @@ class UIController {
           </div>
         </div>
 
-        <!-- Top-right: XP bar -->
         <div class="hud-section top-right">
           <div class="xp-container">
             <div class="xp-bar">
@@ -111,10 +287,8 @@ class UIController {
           </div>
         </div>
 
-        <!-- Center: Crosshair -->
         <div class="crosshair"></div>
 
-        <!-- Bottom-left: Ammo type -->
         <div class="hud-section bottom-left">
           <div id="ammo-display" class="ammo-display">
             <span class="ammo-label">Ammo:</span>
@@ -123,7 +297,6 @@ class UIController {
           </div>
         </div>
 
-        <!-- Bottom-right: Controls hint -->
         <div class="hud-section bottom-right">
           <div class="controls-hint">
             <p>WASD: Move | Mouse: Aim | Click: Fire</p>
@@ -131,7 +304,6 @@ class UIController {
           </div>
         </div>
 
-        <!-- Center-bottom: Throttle indicator -->
         <div class="hud-section center-bottom">
           <div class="throttle-container">
             <span>Throttle:</span>
@@ -142,7 +314,6 @@ class UIController {
           </div>
         </div>
 
-        <!-- Minimap -->
         <div id="minimap" class="minimap">
           <canvas id="minimap-canvas" width="200" height="200"></canvas>
         </div>
@@ -159,7 +330,7 @@ class UIController {
   createMainMenu(containerId) {
     const container = document.getElementById(containerId);
     if (!container) {
-      console.error(`❌ Could not find menu container: ${containerId}`);
+      console.error(`Could not find menu container: ${containerId}`);
       return;
     }
 
@@ -167,7 +338,7 @@ class UIController {
     container.innerHTML = `
       <div id="main-menu" class="menu-overlay">
         <div class="menu-panel">
-          <h2>⚙️ Menu</h2>
+          <h2>Menu</h2>
           <button class="menu-button" id="resume-button">Resume Game</button>
           <button class="menu-button" id="upgrades-button">Upgrade Ship</button>
           <button class="menu-button" id="leaderboard-button">Leaderboard</button>
@@ -177,7 +348,8 @@ class UIController {
       </div>
     `;
 
-    // Attach event listeners
+    this.screens.menu = container;
+
     document.getElementById('resume-button')?.addEventListener('click', () => {
       this.closeMenu();
     });
@@ -203,29 +375,29 @@ class UIController {
   createUpgradesMenu(containerId) {
     const container = document.getElementById(containerId);
     if (!container) {
-      console.error(`❌ Could not find upgrades container: ${containerId}`);
+      console.error(`Could not find upgrades container: ${containerId}`);
       return;
     }
 
     container.style.display = 'none';
 
     const upgrades = [
-      { type: 'hull', name: 'Hull Armor', description: '+20 HP per level', icon: '🛡️' },
-      { type: 'cannons', name: 'Cannon Power', description: '+1.5 Damage per level', icon: '💣' },
-      { type: 'speed', name: 'Ship Speed', description: '+0.5 Speed per level', icon: '💨' },
-      { type: 'acceleration', name: 'Acceleration', description: '+0.2 Accel per level', icon: '⚡' },
-      { type: 'crew', name: 'Crew Quarters', description: '+1 Crew Capacity per level', icon: '👥' }
+      { type: 'hull', name: 'Hull Armor', description: '+20 HP per level', icon: 'Hull' },
+      { type: 'cannons', name: 'Cannon Power', description: '+1.5 Damage per level', icon: 'Gun' },
+      { type: 'speed', name: 'Ship Speed', description: '+0.5 Speed per level', icon: 'Wind' },
+      { type: 'acceleration', name: 'Acceleration', description: '+0.2 Accel per level', icon: 'Boost' },
+      { type: 'crew', name: 'Crew Quarters', description: '+1 Crew Capacity per level', icon: 'Crew' }
     ];
 
     let upgradesHTML = `
       <div id="upgrades-menu" class="menu-overlay">
         <div class="upgrades-panel">
-          <h2>⬆️ Ship Upgrades</h2>
+          <h2>Ship Upgrades</h2>
           <div class="gold-display">Gold: <span id="upgrade-gold">${this.gameState.gold}</span></div>
           <div class="upgrades-grid">
     `;
 
-    upgrades.forEach(upgrade => {
+    upgrades.forEach((upgrade) => {
       upgradesHTML += `
         <div class="upgrade-card" data-upgrade="${upgrade.type}">
           <div class="upgrade-icon">${upgrade.icon}</div>
@@ -247,11 +419,11 @@ class UIController {
     `;
 
     container.innerHTML = upgradesHTML;
+    this.screens.upgrades = container;
 
-    // Attach upgrade button listeners
-    document.querySelectorAll('.upgrade-button').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const upgradeType = e.target.dataset.upgrade;
+    document.querySelectorAll('.upgrade-button').forEach((button) => {
+      button.addEventListener('click', (event) => {
+        const upgradeType = event.currentTarget.dataset.upgrade;
         this.purchaseUpgrade(upgradeType);
       });
     });
@@ -269,7 +441,7 @@ class UIController {
   createLeaderboard(containerId) {
     const container = document.getElementById(containerId);
     if (!container) {
-      console.error(`❌ Could not find leaderboard container: ${containerId}`);
+      console.error(`Could not find leaderboard container: ${containerId}`);
       return;
     }
 
@@ -277,7 +449,7 @@ class UIController {
     container.innerHTML = `
       <div id="leaderboard-menu" class="menu-overlay">
         <div class="leaderboard-panel">
-          <h2>🏆 Leaderboard</h2>
+          <h2>Leaderboard</h2>
           <div id="leaderboard-list" class="leaderboard-list">
             <div class="loading">Loading leaderboard...</div>
           </div>
@@ -285,6 +457,8 @@ class UIController {
         </div>
       </div>
     `;
+
+    this.screens.leaderboard = container;
 
     document.getElementById('leaderboard-back')?.addEventListener('click', () => {
       this.showMainMenu();
@@ -305,36 +479,32 @@ class UIController {
 
     const levelEl = document.getElementById('hud-level');
     if (levelEl) levelEl.textContent = this.gameState.level;
-    
+
     const goldEl = document.getElementById('hud-gold');
     if (goldEl) goldEl.textContent = this.gameState.gold;
-    
+
     const hpEl = document.getElementById('hud-hp');
     if (hpEl) hpEl.textContent = `${Math.ceil(hp)}/${maxHP}`;
 
-    // Update XP bar
     const xpPercent = this.gameState.getXPPercentage() * 100;
     const xpProgressEl = document.getElementById('xp-progress');
-    if (xpProgressEl) xpProgressEl.style.width = xpPercent + '%';
-    
+    if (xpProgressEl) xpProgressEl.style.width = `${xpPercent}%`;
+
     const xpTextEl = document.getElementById('xp-text');
     if (xpTextEl) xpTextEl.textContent = `${this.gameState.xp} / ${this.gameState.maxXP} XP`;
 
-    // Update HP bar
     const hpPercent = this.gameState.getHPPercentage() * 100;
     const hpBar = document.querySelector('.hp-bar .hp-fill');
-    if (hpBar) hpBar.style.width = hpPercent + '%';
+    if (hpBar) hpBar.style.width = `${hpPercent}%`;
 
-    // Update ammo type
     const ammoEl = document.getElementById('ammo-type');
     if (ammoEl) ammoEl.textContent = ammoType;
 
-    // Update throttle
     const throttleIndicator = document.getElementById('throttle-indicator');
-    if (throttleIndicator) throttleIndicator.style.width = throttlePercent + '%';
-    
+    if (throttleIndicator) throttleIndicator.style.width = `${throttlePercent}%`;
+
     const throttleValue = document.getElementById('throttle-value');
-    if (throttleValue) throttleValue.textContent = throttlePercent.toFixed(0) + '%';
+    if (throttleValue) throttleValue.textContent = `${throttlePercent.toFixed(0)}%`;
   }
 
   /**
@@ -346,30 +516,28 @@ class UIController {
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    const w = canvas.width;
-    const h = canvas.height;
-    const scale = 0.05; // 1 unit on map = 0.05 pixels
 
-    // Clear canvas
+    const width = canvas.width;
+    const height = canvas.height;
+    const scale = 0.05;
+
     ctx.fillStyle = '#1a3a3a';
-    ctx.fillRect(0, 0, w, h);
+    ctx.fillRect(0, 0, width, height);
 
-    // Draw border
     ctx.strokeStyle = '#00ff00';
     ctx.lineWidth = 2;
-    ctx.strokeRect(0, 0, w, h);
+    ctx.strokeRect(0, 0, width, height);
 
-    // Draw player ship
+    const shipPosition = this.gameState.ship?.position || { x: 0, z: 0 };
+    const playerX = (shipPosition.x + 2000) * scale;
+    const playerY = (shipPosition.z + 2000) * scale;
     ctx.fillStyle = '#ff9900';
-    const playerX = (this.gameState.ship.position.x + 2000) * scale;
-    const playerY = (this.gameState.ship.position.z + 2000) * scale;
     ctx.fillRect(playerX - 3, playerY - 3, 6, 6);
 
-    // Draw other ships
     ctx.fillStyle = '#ff0000';
-    this.gameState.otherShips.forEach(ship => {
-      const x = (ship.position.x + 2000) * scale;
-      const y = (ship.position.z + 2000) * scale;
+    this.gameState.otherShips.forEach((ship) => {
+      const x = ((ship.position?.x ?? 0) + 2000) * scale;
+      const y = ((ship.position?.z ?? 0) + 2000) * scale;
       ctx.fillRect(x - 2, y - 2, 4, 4);
     });
   }
@@ -399,7 +567,7 @@ class UIController {
   }
 
   /**
-   * Show/hide menu
+   * Show or hide menu
    */
   toggleMenu() {
     if (this.isMenuOpen) {
@@ -414,6 +582,8 @@ class UIController {
    */
   showMainMenu() {
     if (this.screens.menu) this.screens.menu.style.display = 'block';
+    if (this.screens.upgrades) this.screens.upgrades.style.display = 'none';
+    if (this.screens.leaderboard) this.screens.leaderboard.style.display = 'none';
     this.isMenuOpen = true;
   }
 
@@ -421,7 +591,10 @@ class UIController {
    * Show upgrades menu
    */
   showUpgradesMenu() {
+    if (this.screens.menu) this.screens.menu.style.display = 'none';
     if (this.screens.upgrades) this.screens.upgrades.style.display = 'block';
+    if (this.screens.leaderboard) this.screens.leaderboard.style.display = 'none';
+    this.isMenuOpen = true;
   }
 
   /**
@@ -429,16 +602,19 @@ class UIController {
    */
   showLeaderboard() {
     this.network.getLeaderboard();
+    if (this.screens.menu) this.screens.menu.style.display = 'none';
+    if (this.screens.upgrades) this.screens.upgrades.style.display = 'none';
     if (this.screens.leaderboard) this.screens.leaderboard.style.display = 'block';
+    this.isMenuOpen = true;
   }
 
   /**
-   * Close menu
+   * Close all menus without hiding the HUD
    */
   closeMenu() {
-    Object.values(this.screens).forEach(screen => {
-      if (screen) screen.style.display = 'none';
-    });
+    if (this.screens.menu) this.screens.menu.style.display = 'none';
+    if (this.screens.upgrades) this.screens.upgrades.style.display = 'none';
+    if (this.screens.leaderboard) this.screens.leaderboard.style.display = 'none';
     this.isMenuOpen = false;
   }
 
@@ -448,26 +624,26 @@ class UIController {
   async purchaseUpgrade(upgradeType) {
     try {
       const result = await this.network.purchaseUpgrade(upgradeType);
-      console.log(`✅ Upgraded ${upgradeType} to level ${result.newLevel}`);
+      console.log(`Upgraded ${upgradeType} to level ${result.newLevel}`);
     } catch (error) {
-      console.error(`❌ Failed to purchase upgrade: ${error.message}`);
+      console.error(`Failed to purchase upgrade: ${error.message}`);
       alert(`Failed to purchase upgrade: ${error.message}`);
     }
   }
 
-  // Event system
   listeners = new Map();
 
   on(eventName, callback) {
     if (!this.listeners.has(eventName)) {
       this.listeners.set(eventName, []);
     }
+
     this.listeners.get(eventName).push(callback);
   }
 
   emit(eventName, data) {
     if (this.listeners.has(eventName)) {
-      this.listeners.get(eventName).forEach(handler => handler(data));
+      this.listeners.get(eventName).forEach((handler) => handler(data));
     }
   }
 }

@@ -12,6 +12,8 @@ class GameState {
     this.gold = 500;
     this.xp = 0;
     this.maxXP = 100;
+    this.gameMode = 'teamflags';
+    this.shipCode = '';
     
     // Ship data
     this.ship = this.createDefaultShipState();
@@ -349,6 +351,8 @@ class GameState {
     this.level = 1;
     this.gold = 500;
     this.xp = 0;
+    this.gameMode = 'teamflags';
+    this.shipCode = '';
     this.ship = this.createDefaultShipState();
     this.otherShips.clear();
     this.projectiles.clear();

@@ -10,18 +10,19 @@ import { startWorld, stopWorld, updateWorld } from './worldRuntime.js';
 
 class GameClient {
   constructor() {
-    console.log('🎮 Initializing GameClient...');
-    
-    // Initialize systems
+    console.log('Initializing GameClient...');
+
     this.auth = new AuthSystem();
     this.network = new NetworkClient();
     this.gameState = new GameState(this.network);
     this.ui = new UIController(this.gameState, this.network);
     this.input = new InputController(this.gameState, this.network);
-    
+
     this.isRunning = false;
     this.currentScreen = 'login';
-    
+    this.currentMode = 'teamflags';
+    this.currentShipCode = '';
+
     this.setupEventHandlers();
   }
 
@@ -29,16 +30,14 @@ class GameClient {
    * Setup event handlers between systems
    */
   setupEventHandlers() {
-    // UI events
     this.ui.on('login', async (data) => {
-      await this.handleLogin(data.username);
+      await this.handleLogin(data);
     });
 
     this.ui.on('logout', () => {
       this.handleLogout();
     });
 
-    // Input events
     this.input.on('menuToggle', () => {
       this.ui.toggleMenu();
     });
@@ -47,13 +46,12 @@ class GameClient {
       this.ui.showLeaderboard();
     });
 
-    // Game state events
     this.gameState.on('playerUpdated', () => {
-      console.log(`📊 Player updated: Level ${this.gameState.level}`);
+      console.log(`Player updated: Level ${this.gameState.level}`);
     });
 
     this.gameState.on('chatMessageAdded', (data) => {
-      console.log(`💬 ${data.playerName}: ${data.message}`);
+      console.log(`${data.playerName}: ${data.message}`);
     });
   }
 
@@ -62,27 +60,17 @@ class GameClient {
    */
   async init() {
     try {
-      console.log('🚀 Starting game initialization...');
-      
-      // Create UI containers
-      console.log('📍 Creating UI containers...');
+      console.log('Starting game initialization...');
       this.createUIContainers();
-      console.log('✅ UI containers created');
-      
-      // Connect to server
-      console.log('🔌 Connecting to game server...');
+
+      console.log('Connecting to game server...');
       await this.network.connect();
-      console.log('✅ Network connected');
-      
-      // Show login screen
-      console.log('📱 Showing login screen...');
+
       this.showLoginScreen();
-      console.log('✅ Login screen displayed');
-      
-      console.log('✅ GameClient initialized');
+      console.log('GameClient initialized');
       return this;
     } catch (error) {
-      console.error('❌ Failed to initialize GameClient:', error);
+      console.error('Failed to initialize GameClient:', error);
       console.error('Error message:', error.message);
       console.error('Error stack:', error.stack);
       throw error;
@@ -93,10 +81,8 @@ class GameClient {
    * Create UI containers in DOM
    */
   createUIContainers() {
-    // Main container
     const mainContainer = document.getElementById('app') || document.body;
-    
-    // Create screens if they don't exist
+
     if (!document.getElementById('login-container')) {
       const loginDiv = document.createElement('div');
       loginDiv.id = 'login-container';
@@ -127,7 +113,6 @@ class GameClient {
       mainContainer.appendChild(leaderboardDiv);
     }
 
-    // Create UI screens
     this.ui.createLoginScreen('login-container');
     this.ui.createHUD('hud-container');
     this.ui.createMainMenu('menu-container');
@@ -144,13 +129,15 @@ class GameClient {
     const menuContainer = document.getElementById('menu-container');
     const upgradesContainer = document.getElementById('upgrades-container');
     const leaderboardContainer = document.getElementById('leaderboard-container');
-    
+
     if (loginContainer) loginContainer.style.display = 'block';
     if (hudContainer) hudContainer.style.display = 'none';
     if (menuContainer) menuContainer.style.display = 'none';
     if (upgradesContainer) upgradesContainer.style.display = 'none';
     if (leaderboardContainer) leaderboardContainer.style.display = 'none';
+
     this.currentScreen = 'login';
+    this.ui.refreshLoginServerStatus();
   }
 
   /**
@@ -160,49 +147,63 @@ class GameClient {
     const loginContainer = document.getElementById('login-container');
     const hudContainer = document.getElementById('hud-container');
     const menuContainer = document.getElementById('menu-container');
-    
+
     if (loginContainer) loginContainer.style.display = 'none';
     if (hudContainer) hudContainer.style.display = 'block';
     if (menuContainer) menuContainer.style.display = 'none';
+
     this.currentScreen = 'game';
   }
 
   /**
    * Handle player login
    */
-  async handleLogin(username) {
+  async handleLogin(loginData) {
     try {
-      console.log(`🔐 Logging in as ${username}...`);
+      const normalizedLogin = typeof loginData === 'string'
+        ? { username: loginData, mode: 'teamflags', shipCode: '' }
+        : (loginData || {});
+      const username = String(normalizedLogin.username || '').trim();
+      const mode = normalizedLogin.mode === 'trading' ? 'trading' : 'teamflags';
+      const shipCode = String(normalizedLogin.shipCode || '').trim();
 
-      // Create/load account locally
+      if (!username) {
+        throw new Error('Please enter a username');
+      }
+
+      console.log(`Logging in as ${username}...`);
+
+      this.currentMode = mode;
+      this.currentShipCode = shipCode;
+
       const account = this.auth.createAccount(username);
-      console.log(`✅ Account created: ${account.playerId}`);
-      
-      // Authenticate with server
+      console.log(`Account created: ${account.playerId}`);
+
       const playerId = account.playerId;
-      console.log(`🔌 Authenticating with server...`);
+      console.log('Authenticating with server...');
       await this.network.authenticate(playerId, username);
-      
-      // Update local game state
+
       this.gameState.playerId = playerId;
       this.gameState.playerName = username;
-      
-      // Spawn initial ship
-      console.log('⛵ Spawning ship...');
+      this.gameState.gameMode = mode;
+      this.gameState.shipCode = shipCode;
+
+      console.log('Spawning ship...');
       const ship = await this.network.spawnShip('sloop');
       this.gameState.setShipState(ship);
-      console.log(`✅ Ship spawned: ${ship.type}`);
-      
-      // Show game screen
-      console.log('📱 Showing game screen...');
+      console.log(`Ship spawned: ${ship.type}`);
+
       this.showGameScreen();
-      startWorld(this.gameState);
-      
-      console.log(`✅ ${username} logged in successfully`);
+      startWorld(this.gameState, {
+        mode,
+        shipCode,
+        playerName: username
+      });
+
+      console.log(`${username} logged in successfully`);
       this.startGameLoop();
-      
     } catch (error) {
-      console.error('❌ Login failed:', error);
+      console.error('Login failed:', error);
       console.error('Error details:', error.message);
       alert(`Login failed: ${error.message}`);
     }
@@ -212,23 +213,20 @@ class GameClient {
    * Handle logout
    */
   async handleLogout() {
-    console.log('👋 Logging out...');
-    
-    // Stop game loop
+    console.log('Logging out...');
+
     this.stopGameLoop();
-    
-    // Disconnect from server
     this.network.disconnect();
-    
-    // Reset state
+
     stopWorld();
     this.gameState.reset();
     this.auth.logout();
-    
-    // Show login screen
+
+    this.currentMode = 'teamflags';
+    this.currentShipCode = '';
+
     this.showLoginScreen();
-    
-    console.log('✅ Logged out');
+    console.log('Logged out');
   }
 
   /**
@@ -236,24 +234,22 @@ class GameClient {
    */
   startGameLoop() {
     if (this.isRunning) return;
-    
-    console.log('▶️ Starting game loop...');
+
+    console.log('Starting game loop...');
     this.isRunning = true;
-    
+
     const gameLoop = () => {
       if (!this.isRunning) return;
-      
-      // Update game state
+
       this.update();
-      
-      // Request server state periodically
-      if (Math.random() < 0.33) { // ~20x per second
+
+      if (Math.random() < 0.33) {
         this.network.requestGameState();
       }
-      
+
       requestAnimationFrame(gameLoop);
     };
-    
+
     requestAnimationFrame(gameLoop);
   }
 
@@ -261,7 +257,7 @@ class GameClient {
    * Stop game loop
    */
   stopGameLoop() {
-    console.log('⏹️ Stopping game loop...');
+    console.log('Stopping game loop...');
     this.isRunning = false;
   }
 
@@ -295,6 +291,8 @@ class GameClient {
       level: this.gameState.level,
       gold: this.gameState.gold,
       shipType: this.gameState.ship.type,
+      mode: this.currentMode,
+      shipCode: this.currentShipCode,
       isRunning: this.isRunning,
       isConnected: this.network.isConnected,
       currentScreen: this.currentScreen
@@ -302,5 +300,4 @@ class GameClient {
   }
 }
 
-// Export singleton instance
 export default GameClient;
