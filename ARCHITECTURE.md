@@ -2,26 +2,25 @@
 
 ## Project Structure
 
-This project is now fully separated into **Frontend** and **Backend** with independent codebases and deployments:
-
-```
+This project is now fully separated into **Frontend** and **Backend** with independent codebases and deplo
 ShipStrike-3D/
-├── frontend/                 # React/Vite Frontend
-│   ├── src/                 # Frontend source code
-│   ├── public/              # Static assets
-│   ├── package.json         # Frontend dependencies
-│   ├── vite.config.js       # Vite configuration
-│   └── .env.local           # Frontend environment variables
+├── frontend/ # React/Vite Frontend
+│ ├── src/ # Frontend source code
+│ ├── public/ # Static assets
+│ ├── package.json # Frontend dependencies
+│ ├── vite.config.js # Vite configuration
+│ └── .env.local # Frontend environment variables
 │
-├── server/                   # Express + Socket.io Backend
-│   ├── gameServer.js        # Main server file
-│   ├── package.json         # Server dependencies
-│   ├── database.js          # Database layer
-│   └── systems/             # Game logic modules
+├── server/ # Express + Socket.io Backend
+│ ├── gameServer.js # Main server file
+│ ├── package.json # Server dependencies
+│ ├── database.js # Database layer
+│ └── systems/ # Game logic modules
 │
-├── package.json             # Root workspace configuration
-└── README.md               # This file
-```
+├── package.json # Root workspace configuration
+└── README.md # This file
+
+````
 
 ## Development
 
@@ -30,7 +29,7 @@ ShipStrike-3D/
 ```bash
 npm install              # Install dependencies for all packages
 npm run dev:both        # Runs frontend (port 5173) + server (port 3000)
-```
+````
 
 ### Running Services Separately
 
@@ -115,3 +114,5 @@ This allows:
 - Clear separation of concerns
 - Easier testing
 - Better performance optimization
+
+test
