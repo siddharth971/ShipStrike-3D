@@ -63,6 +63,19 @@ class NetworkClient {
   }
 
   /**
+   * Fetch server status for lobby display
+   */
+  async getServerStatus() {
+    const response = await fetch(new URL('/api/status', this.serverUrl).toString());
+
+    if (!response.ok) {
+      throw new Error(`Server status request failed: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  /**
    * Authenticate with server
    */
   authenticate(playerId, playerName) {
