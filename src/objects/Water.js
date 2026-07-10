@@ -155,7 +155,7 @@ export class Water extends THREE.Mesh {
       fragmentShader: waterFragmentShader,
       uniforms: {
         uTime: { value: 0 },
-        uOpacity: { value: 0.95 },
+        uOpacity: { value: 0.96 },
         uEnvironmentMap: { value: options.environmentMap },
         mirrorSampler: { value: renderTarget.texture },
         textureMatrix: { value: textureMatrix },
@@ -167,17 +167,17 @@ export class Water extends THREE.Mesh {
         uSimCenter: { value: new THREE.Vector2(0, 0) },
 
         // Wave parameters
-        uWavesAmplitude: { value: 0.5 },
-        uWavesFrequency: { value: 0.2 },
-        uWavesIterations: { value: 5 },
-        uWavesSpeed: { value: 0.2 },
-        uWavesPersistence: { value: 0.5 },
-        uWavesLacunarity: { value: 2.0 },
+        uWavesAmplitude: { value: 1.2 },
+        uWavesFrequency: { value: 2.59 },
+        uWavesIterations: { value: 8 },
+        uWavesSpeed: { value: 2 },
+        uWavesPersistence: { value: 0.92 },
+        uWavesLacunarity: { value: 1.8 },
 
         // Colors - Dark ocean theme
-        uTroughColor: { value: new THREE.Color('#000d1a') },   // Deep dark navy
-        uSurfaceColor: { value: new THREE.Color('#003d52') },  // Dark teal
-        uPeakColor: { value: new THREE.Color('#1a7a99') },     // Muted cyan
+        uTroughColor: { value: new THREE.Color('rgb(0,13,26)') },   // Deep dark navy
+        uSurfaceColor: { value: new THREE.Color('rgb(0,61,82)') },  // Dark teal
+        uPeakColor: { value: new THREE.Color('rgb(26,122,153)') },     // Muted cyan
 
         // Color thresholds
         uPeakThreshold: { value: 3 },
@@ -186,35 +186,35 @@ export class Water extends THREE.Mesh {
         uTroughTransition: { value: 0.3 },
 
         // Fresnel
-        uFresnelScale: { value: 0.0 },
-        uFresnelPower: { value: 3.0 },
-        uFresnelBias: { value: 0.1 },
+        uFresnelScale: { value: 0.13 },
+        uFresnelPower: { value: 10.0 },
+        uFresnelBias: { value: 3.469446951953614e-18 },
 
         // Reflections
         sunDir: { value: new THREE.Vector3(30, 80, 50).normalize() },
-        distortionScale: { value: 1.0 },
-        uEnvMapIntensity: { value: 1.0 },
-        uMirrorMix: { value: 0.5 },
+        distortionScale: { value: 1.7 },
+        uEnvMapIntensity: { value: 2.0 },
+        uMirrorMix: { value: 0.43 },
 
         // Specular
-        uSpecularIntensity: { value: 1.5 },
-        uSpecularPower: { value: 256.0 },
+        uSpecularIntensity: { value: 1.8 },
+        uSpecularPower: { value: 512.0 },
 
         // SSS
-        uSSSIntensity: { value: 0.3 },
-        uSSSColor: { value: new THREE.Color('#0051ff') },
-        uSSSPower: { value: 3.0 },
+        uSSSIntensity: { value: 0.18 },
+        uSSSColor: { value: new THREE.Color('rgb(0,81,255)') },
+        uSSSPower: { value: 1.0 },
 
         // Caustics
         uCausticsEnabled: { value: 1.0 },
-        uCausticsIntensity: { value: 1.4 },
+        uCausticsIntensity: { value: 0.12999999999999987 },
         uCausticsScale: { value: 8.0 },
         uCausticsSpeed: { value: 0.3 },
-        uCausticsColor: { value: new THREE.Color('#88ddff') },
+        uCausticsColor: { value: new THREE.Color('rgb(136,221,255)') },
 
         // Foam
-        uFoamIntensity: { value: 0.5 },
-        uFoamColor: { value: new THREE.Color('#1120f5') }
+        uFoamIntensity: { value: 0.0 },
+        uFoamColor: { value: new THREE.Color('rgb(17,32,245)') }
       },
       transparent: true,
       depthTest: true,
